@@ -1,9 +1,8 @@
-
 import React from 'react';
 
 const Header: React.FC = () => {
     return (
-        <header className="text-center p-4">
+        <header className="text-center px-4 py-6 sm:py-8 border-b border-brand-gold/20">
             <h1 className="text-3xl md:text-4xl font-bold text-white">
                 Asistente de Loterías
             </h1>

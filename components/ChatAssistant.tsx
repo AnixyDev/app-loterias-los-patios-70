@@ -49,11 +49,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, 
     const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
         const isUser = message.sender === 'user';
         return (
-            <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl shadow ${
+            <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl shadow-md ${
                     isUser
                         ? 'bg-brand-gold text-black rounded-br-none'
-                        : 'bg-gray-800 text-white rounded-bl-none'
+                        : 'bg-gray-800 text-white rounded-bl-none shadow-black/20'
                 }`}>
                     <div className="text-sm"><SimpleMarkdown text={message.text} /></div>
                 </div>
@@ -62,12 +62,12 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, 
     };
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex-grow space-y-4 pr-2 overflow-y-auto">
+        <div className="flex flex-col h-full flex-grow min-h-0">
+            <div className="flex-grow space-y-4 pr-2 -mr-2 overflow-y-auto">
                 {messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)}
                 {isBotTyping && (
-                    <div className="flex justify-start">
-                        <div className="px-4 py-3 rounded-2xl bg-gray-800 rounded-bl-none shadow">
+                    <div className="flex justify-start animate-fade-in-up">
+                        <div className="px-4 py-3 rounded-2xl bg-gray-800 rounded-bl-none shadow-md">
                             <div className="flex items-center space-x-2">
                                 <span className="h-2 w-2 bg-brand-gold rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                 <span className="h-2 w-2 bg-brand-gold rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -78,14 +78,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, 
                 )}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="mt-4 pt-4 border-t border-brand-gold/50">
+            <div className="mt-4 pt-4 border-t border-brand-gold/50 shrink-0">
                 <form onSubmit={handleSubmit} className="flex items-center space-x-2">
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Escribe tu pregunta aquí..."
-                        className="flex-grow p-3 border border-brand-gold/50 rounded-full focus:ring-2 focus:ring-brand-gold focus:outline-none bg-gray-800 text-white"
+                        className="flex-grow p-3 border border-brand-gold/50 rounded-full focus:ring-2 focus:ring-brand-gold focus:outline-none bg-gray-900 text-white"
                         disabled={isBotTyping}
                     />
                     <button

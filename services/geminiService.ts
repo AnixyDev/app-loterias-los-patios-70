@@ -1,176 +1,123 @@
-import { GoogleGenAI, Chat, FunctionDeclaration, Type } from "@google/genai";
-import { GenerationStrategy, LotteryGame, GeneratedNumbers } from '../types';
-import { SYSTEM_INSTRUCTION, LOTTERY_GAMES, CTA_LINK } from '../constants';
+// Fix: Provide full implementation for geminiService.ts to resolve module errors.
+// This service encapsulates all interactions with the Google Gemini API.
+
+import { GoogleGenAI } from "@google/genai";
+import { LotteryGame, LotteryResult, FeaturedResult, WeeklyTickerResult } from '../types';
 
 if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+    throw new Error("API_KEY environment variable not set.");
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const model = 'gemini-2.5-flash';
 
-let chat: Chat | null = null;
 
-const generateLotteryNumbersTool: FunctionDeclaration = {
-    name: 'generateLotteryNumbers',
-    description: 'Genera una combinación de números para un sorteo de lotería específico usando una estrategia. Llama a esta función si el usuario pide números para un juego.',
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            gameName: {
-                type: Type.STRING,
-                description: `El nombre del sorteo. Opciones: ${LOTTERY_GAMES.map(g => g.name).join(', ')}.`,
-            },
-            strategy: {
-                type: Type.STRING,
-                description: `La estrategia a usar. Opciones: ${Object.values(GenerationStrategy).join(', ')}. Si el usuario no especifica, usa '${GenerationStrategy.RANDOM}'.`,
-            },
-        },
-        required: ['gameName'],
-    },
+const parseJsonResponse = (text: string) => {
+    const trimmedText = text.trim();
+    const jsonMatch = trimmedText.match(/```json\s*([\s\S]*?)\s*```/);
+    const jsonString = jsonMatch ? jsonMatch[1] : trimmedText;
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        console.error("Failed to parse JSON string:", jsonString);
+        throw new Error("La respuesta de la IA no tenía un formato JSON válido.");
+    }
 };
 
-function getChat(): Chat {
-    if (!chat) {
-        chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: SYSTEM_INSTRUCTION,
-                tools: [{ functionDeclarations: [generateLotteryNumbersTool] }],
-            },
-        });
-    }
-    return chat;
-}
 
-export async function getChatResponse(message: string): Promise<string> {
+export const getChatResponse = async (history: { role: string, parts: { text: string }[] }[], newMessage: string): Promise<string> => {
     try {
-        const chatSession = getChat();
-        const response = await chatSession.sendMessage({ message });
-
-        if (response.functionCalls && response.functionCalls.length > 0) {
-            const call = response.functionCalls[0];
-
-            if (call.name === 'generateLotteryNumbers') {
-                const args = call.args as { gameName?: string, strategy?: string };
-
-                if (!args.gameName) {
-                    return "Por favor, especifica para qué sorteo quieres que genere los números.";
-                }
-
-                const game = LOTTERY_GAMES.find(g => g.name.toLowerCase() === args.gameName?.toLowerCase());
-
-                if (!game) {
-                    return `Lo siento, no conozco el sorteo "${args.gameName}". Puedo generar números para: ${LOTTERY_GAMES.map(g => g.name).join(', ')}.`;
-                }
-
-                const strategy = Object.values(GenerationStrategy).find(s => s.toLowerCase() === args.strategy?.toLowerCase()) || GenerationStrategy.RANDOM;
-
-                const numbers = await generateLotteryNumbers(game, strategy, game.addOn ? true : false);
-
-                let mainNumbersStr = numbers.main.join(', ');
-                if (game.id === 'nacional') {
-                    mainNumbersStr = `**${String(numbers.main[0]).padStart(5, '0')}**`;
-                }
-
-                let specialNumbersStr = '';
-                if (numbers.special && game.specialNumbers) {
-                    specialNumbersStr = `\n${game.specialNumbers.name}: **${numbers.special.join(' y ')}**`;
-                }
-                
-                let addOnStr = '';
-                if (numbers.addOn) {
-                    addOnStr = `\n${numbers.addOn.name}: **${String(numbers.addOn.numbers[0]).padStart(7, '0')}**`;
-                }
-
-
-                return `¡Claro que sí! Aquí tienes tu combinación para ${game.name} (${strategy}):\n\n${game.id === 'nacional' ? 'Número:' : 'Números:'} ${mainNumbersStr}${specialNumbersStr}${addOnStr}\n\nTe deseamos mucha suerte con esta jugada. 🍀\n\n🎉 ¡Juega tu combinación online de forma segura con Los Patios 70! Haz clic aquí: ${CTA_LINK}`;
+         const chat = ai.chats.create({
+            model: model,
+            history: history,
+            config: {
+                systemInstruction: `Eres un asistente virtual experto en loterías de España, trabajando para la administración "Los Patios 70". Tu tono es amable, servicial y un poco informal. NUNCA debes dar consejos financieros ni garantizar que un número será ganador. El juego es por azar. Eres capaz de buscar y proporcionar resultados de sorteos pasados si te lo piden, y también de comprobar jugadas específicas. Si el usuario te da sus números y un sorteo, busca el resultado más reciente y dile cuántos aciertos ha tenido y, si es posible, el premio asociado. Utiliza la herramienta de búsqueda para obtener la información más actualizada. Usa markdown simple como **negrita** para resaltar. Sé conciso y directo en tus respuestas.`
             }
-        }
-
+        });
+        
+        const response = await chat.sendMessage({ message: newMessage });
         return response.text;
     } catch (error) {
-        console.error("Error getting chat response:", error);
-        return "Lo siento, he tenido un problema para conectar. Por favor, inténtalo de nuevo más tarde.";
+        console.error("Error getting chat response from Gemini:", error);
+        throw new Error("No se pudo obtener una respuesta. Por favor, inténtalo de nuevo.");
     }
 }
 
-export async function generateLotteryNumbers(game: LotteryGame, strategy: GenerationStrategy, includeAddOn: boolean = false): Promise<GeneratedNumbers> {
-    if (strategy === GenerationStrategy.RANDOM) {
-        return generateRandomNumbers(game, includeAddOn);
-    }
-
-    const prompt = `Genera una combinación de números para el sorteo ${game.name} usando la estrategia de "${strategy}".
-    - Números principales: ${game.numbersToPick} números del ${game.id === 'nacional' ? '0 al' : '1 al'} ${game.maxNumber}.
-    ${game.specialNumbers ? `- Números especiales (${game.specialNumbers.name}): ${game.specialNumbers.count} del 1 al ${game.specialNumbers.max}.` : ''}
-    ${(includeAddOn && game.addOn) ? `- Juego complementario (${game.addOn.name}): ${game.addOn.numbersToPick} número del 0 al ${game.addOn.maxNumber}.` : ''}
-    No añadas ninguna explicación, solo los números. Responde en formato JSON como este: {"main": [n1, n2, ...], "special": [s1, s2, ...], "addOn": {"name": "${game.addOn?.name}", "numbers": [j1]}}. Si no hay especiales o complementarios, omite esas claves. Para Lotería Nacional, genera un único número de 5 cifras. Para El Joker, un número de 7 cifras.`;
-
+export const fetchLatestResults = async (game: LotteryGame, date?: string): Promise<LotteryResult[]> => {
     try {
+        let prompt;
+        if (date) {
+            prompt = `Obtén el resultado del sorteo de lotería "${game.name}" en España para la fecha específica ${date}. Si hubo sorteo ese día, devuelve un array con un único objeto resultado. Si no hubo sorteo en esa fecha exacta, devuelve un array vacío []. Incluye la fecha del sorteo (en formato "Día, DD de Mes de AAAA"), la combinación ganadora (números principales y especiales por separado), el importe del bote o primer premio, dónde se vendió el primer premio (si es público y relevante, ciudad o provincia), el bote estimado para el próximo sorteo (si está disponible) y el desglose de premios (escrutinio). El escrutinio debe ser un array de objetos con "category", "winners" y "prize". Devuelve el resultado únicamente en formato JSON, como un array de objetos, sin texto adicional, markdown o explicaciones. Los campos numéricos de la combinación deben ser 'mainNumbers' y 'specialNumbers'.`;
+        } else {
+            prompt = `Obtén los 3 últimos resultados del sorteo de lotería "${game.name}" en España. Incluye la fecha del sorteo (en formato "Día, DD de Mes de AAAA"), la combinación ganadora (números principales y especiales por separado), el importe del bote o primer premio, dónde se vendió el primer premio (si es público y relevante, ciudad o provincia), el bote estimado para el próximo sorteo (si está disponible) y el desglose de premios (escrutinio) para cada resultado. El escrutinio debe ser un array de objetos con "category", "winners" y "prize". Devuelve el resultado únicamente en formato JSON, como un array de objetos, sin texto adicional, markdown o explicaciones. Los campos numéricos de la combinación deben ser 'mainNumbers' y 'specialNumbers'.`;
+        }
+
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: model,
             contents: prompt,
             config: {
-                responseMimeType: 'application/json',
+                tools: [{ googleSearch: {} }]
             }
         });
-        const text = response.text;
-        const parsed = JSON.parse(text);
         
-        if (game.id === 'nacional' && parsed.main && parsed.main.length > 0) {
-            parsed.main[0] = Math.max(0, Math.min(99999, parsed.main[0]));
-        }
-        
-        // FIX: Ensure that the parsed arrays are correctly typed as number[]
-        // by mapping their values to Number and filtering out invalid values.
-        // This resolves 'unknown[]' type issues.
-        const toNumbers = (arr: unknown): number[] => 
-            Array.isArray(arr) ? arr.map(Number).filter(n => !isNaN(n)) : [];
-
-        return {
-            main: toNumbers(parsed.main),
-            special: toNumbers(parsed.special),
-            addOn: parsed.addOn && parsed.addOn.name && parsed.addOn.numbers ? {
-                name: parsed.addOn.name,
-                numbers: toNumbers(parsed.addOn.numbers),
-            } : undefined
-        };
+        return parseJsonResponse(response.text);
     } catch (error) {
-        console.error("Error generating AI numbers, falling back to random:", error);
-        return generateRandomNumbers(game, includeAddOn);
+        console.error(`Error fetching results for ${game.name}:`, error);
+        throw new Error(`No se pudieron obtener los resultados de ${game.name}.`);
     }
-}
+};
 
-function generateRandomNumbers(game: LotteryGame, includeAddOn: boolean = false): GeneratedNumbers {
-    const main = new Set<number>();
+export const fetchFeaturedResults = async (): Promise<FeaturedResult[]> => {
+    try {
+        const prompt = `Obtén el último y más relevante resultado para los siguientes sorteos en España: Euromillones, La Primitiva, Bonoloto, El Gordo de la Primitiva. Quiero un total de 3 o 4 resultados, priorizando los que tengan botes más grandes o hayan sido más recientes. Para cada uno, necesito: nombre del juego, gameId (euromillones, primitiva, bonoloto, gordo), fecha del sorteo, combinación ganadora (números principales y especiales por separado), y el importe del bote principal en euros. Devuelve el resultado únicamente como un array de objetos JSON, sin texto adicional. Cada objeto debe tener los campos: "gameName", "gameId", "date", "mainNumbers", "specialNumbers" (si aplica), y "jackpot".`;
+        
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
 
-    if (game.id === 'nacional') {
-        main.add(Math.floor(Math.random() * 100000));
-    } else {
-        while (main.size < game.numbersToPick) {
-            main.add(Math.floor(Math.random() * game.maxNumber) + 1);
-        }
+        return parseJsonResponse(response.text);
+    } catch (error) {
+        console.error("Error fetching featured results:", error);
+        throw new Error("No se pudieron cargar los resultados destacados.");
     }
+};
 
-    let special: number[] | undefined = undefined;
-    if (game.specialNumbers) {
-        const specialSet = new Set<number>();
-        while (specialSet.size < game.specialNumbers.count) {
-            specialSet.add(Math.floor(Math.random() * game.specialNumbers.max) + 1);
-        }
-        special = Array.from(specialSet).sort((a: number, b: number) => a - b);
-    }
-    
-    let addOn: { name: string; numbers: number[] } | undefined = undefined;
-    if (includeAddOn && game.addOn) {
-        addOn = {
-            name: game.addOn.name,
-            numbers: [Math.floor(Math.random() * (game.addOn.maxNumber + 1))],
-        };
-    }
+export const fetchWeeklyTickerResults = async (): Promise<WeeklyTickerResult[]> => {
+    try {
+        const prompt = `Proporciona un resumen con el último resultado disponible para cada uno de los siguientes sorteos de lotería en España: Bonoloto, Primitiva, Euromillones, El Gordo, Lotería Nacional, LottoTurf, La Quiniela. Para cada uno, dame el nombre del juego, la fecha del sorteo y la combinación ganadora como una única cadena de texto (ej. para La Quiniela: "1X21X21X21X21X2"). Devuelve el resultado únicamente como un array de objetos JSON, sin texto adicional. Cada objeto debe tener los campos: "gameName", "date" (formato corto, ej. "Lun 01/01"), y "numbers".`;
 
-    return {
-        main: Array.from(main).sort((a: number, b: number) => a - b),
-        special: special,
-        addOn: addOn,
-    };
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
+
+        return parseJsonResponse(response.text);
+    } catch (error) {
+        console.error("Error fetching weekly ticker results:", error);
+        throw new Error("Error al cargar resultados de la semana.");
+    }
+};
+
+export const checkTicket = async (game: LotteryGame, mainNumbers: string[], specialNumbers: string[]): Promise<string> => {
+     try {
+        const prompt = `Comprueba si el siguiente boleto del sorteo "${game.name}" ha obtenido algún premio en el último sorteo celebrado. Mi jugada es: números principales: ${mainNumbers.join(', ')}${game.specialNumbers && specialNumbers.length > 0 ? `, ${game.specialNumbers.name}: ${specialNumbers.join(', ')}` : ''}. Busca el último resultado oficial y compáralo con mi jugada. Responde de forma clara y concisa. Empieza diciendo si el boleto está premiado o no. Si tiene premio, indica la categoría (ej. "3 aciertos") y el importe exacto ganado en euros según el escrutinio oficial. Si no ha sido premiado, simplemente di que no ha obtenido premio. Termina la respuesta con una frase de ánimo como "¡Mucha suerte para la próxima!". No incluyas información sobre el bote o el próximo sorteo.`;
+
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+        });
+        
+        return response.text;
+    } catch (error) {
+        console.error(`Error checking ticket for ${game.name}:`, error);
+        throw new Error(`No se pudo comprobar tu jugada de ${game.name}.`);
+    }
 }
