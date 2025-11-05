@@ -38,7 +38,7 @@ const NumberGenerator: React.FC<NumberGeneratorProps> = ({ games, onGenerate, is
                 id="game-select"
                 value={selectedGameId}
                 onChange={(e) => setSelectedGameId(e.target.value)}
-                className="w-full p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
+                className="w-full p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
             >
                 {games.map(game => (
                     <option key={game.id} value={game.id}>
@@ -58,7 +58,7 @@ const NumberGenerator: React.FC<NumberGeneratorProps> = ({ games, onGenerate, is
                 id="strategy-select"
                 value={selectedStrategy}
                 onChange={(e) => setSelectedStrategy(e.target.value as GenerationStrategy)}
-                className="w-full p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
+                className="w-full p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
             >
                 {Object.values(GenerationStrategy).map(strategy => (
                     <option key={strategy} value={strategy}>
@@ -83,7 +83,7 @@ const NumberGenerator: React.FC<NumberGeneratorProps> = ({ games, onGenerate, is
                     value={inspirationText}
                     onChange={(e) => setInspirationText(e.target.value)}
                     placeholder="Ej: Soñé que volaba sobre una playa dorada..."
-                    className="w-full p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none resize-none"
+                    className="w-full p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none resize-none"
                 />
             </div>
         )

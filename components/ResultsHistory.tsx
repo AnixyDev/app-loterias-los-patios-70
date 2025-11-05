@@ -1,6 +1,51 @@
 import React, { useState } from 'react';
 import { LotteryGame, LotteryResult, PrizeTier } from '../types';
 
+const formatCurrency = (value: string | number | undefined | null): string => {
+    if (value === null || value === undefined) return '';
+
+    const valueStr = String(value);
+    
+    // If the string does not contain any digits, it's likely a status message like "Sin Bote".
+    if (!/\d/.test(valueStr)) {
+        return valueStr;
+    }
+
+    // Prepare the string for parsing:
+    // 1. Remove currency symbols (€, $, etc.) and any whitespace.
+    // 2. In Spanish locale, '.' is a thousands separator, so remove it.
+    // 3. In Spanish locale, ',' is the decimal separator, so replace it with a '.' for parseFloat.
+    const numberString = valueStr
+        .replace(/[€$]/g, '')
+        .trim()
+        .replace(/\./g, '') 
+        .replace(',', '.');
+        
+    const number = parseFloat(numberString);
+    
+    // If parsing fails, return the original string to avoid showing "NaN".
+    if (isNaN(number)) {
+        return valueStr;
+    }
+    
+    const options: Intl.NumberFormatOptions = {
+        style: 'currency',
+        currency: 'EUR',
+    };
+
+    // For large integer values, don't show decimal places. For smaller prize values, do.
+    if (number % 1 === 0 && number >= 1000) {
+        options.minimumFractionDigits = 0;
+        options.maximumFractionDigits = 0;
+    } else {
+        options.minimumFractionDigits = 2;
+        options.maximumFractionDigits = 2;
+    }
+
+    return new Intl.NumberFormat('es-ES', options).format(number);
+};
+
+
 interface ResultsHistoryProps {
     games: LotteryGame[];
     history: LotteryResult[];
@@ -16,7 +61,7 @@ const PrizeTiersTable: React.FC<{ tiers: PrizeTier[] }> = ({ tiers }) => {
     return (
         <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm text-left">
-                <thead className="bg-gray-900/70">
+                <thead className="bg-black/70">
                     <tr>
                         <th className="px-4 py-2 font-semibold">Categoría</th>
                         <th className="px-4 py-2 font-semibold">Ganadores</th>
@@ -28,7 +73,7 @@ const PrizeTiersTable: React.FC<{ tiers: PrizeTier[] }> = ({ tiers }) => {
                         <tr key={index} className="border-b border-gray-800">
                             <td className="px-4 py-2">{tier.category}</td>
                             <td className="px-4 py-2">{tier.winners}</td>
-                            <td className="px-4 py-2 text-right font-mono">{tier.prize}</td>
+                            <td className="px-4 py-2 text-right font-mono">{formatCurrency(tier.prize)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -85,11 +130,11 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
         return (
              <div className="space-y-4 h-full max-h-[500px] overflow-y-auto pr-2 -mr-2">
                 {history.map((result, index) => (
-                    <div key={index} className="bg-gray-900/70 p-4 rounded-lg border border-white/10 transition-transform duration-200 hover:scale-[1.02] hover:border-brand-gold/50">
+                    <div key={index} className="bg-black/70 p-4 rounded-lg border border-white/10 transition-transform duration-200 hover:scale-[1.02] hover:border-brand-gold/50">
                         <div className="flex justify-between items-start mb-3">
                             <div>
                                 <p className="text-lg font-bold text-brand-gold">{result.date}</p>
-                                <p className="text-sm text-gray-300">Bote: <span className="font-semibold">{result.jackpot}</span></p>
+                                <p className="text-sm text-gray-300">Bote: <span className="font-semibold">{formatCurrency(result.jackpot)}</span></p>
                             </div>
                             {result.nextJackpot && (
                                 <div className="text-right">
@@ -100,12 +145,12 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
                         </div>
                         
                         <div className="flex items-center gap-2 flex-wrap mb-3">
-                            {result.mainNumbers.map((num, i) => (
+                            {result.mainNumbers && result.mainNumbers.map((num, i) => (
                                 <span key={`${num}-${i}`} className="flex items-center justify-center h-8 w-8 bg-white text-black rounded-full font-bold text-base">
                                     {num}
                                 </span>
                             ))}
-                             {result.specialNumbers && result.specialNumbers.map((num, i) => (
+                             {result.specialNumbers && (Array.isArray(result.specialNumbers) ? result.specialNumbers : [result.specialNumbers]).map((num, i) => (
                                 <span key={`s-${num}-${i}`} className="flex items-center justify-center h-8 w-8 bg-brand-gold text-black rounded-full font-bold text-base">
                                     {num}
                                 </span>
@@ -138,7 +183,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
                  <select
                     value={selectedGameId}
                     onChange={handleGameChange}
-                    className="w-full sm:flex-grow p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
+                    className="w-full sm:flex-grow p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
                 >
                     {games.map(game => (
                         <option key={game.id} value={game.id}>
@@ -150,7 +195,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full sm:w-auto p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none text-gray-300"
+                    className="w-full sm:w-auto p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none text-gray-300"
                     aria-label="Seleccionar fecha"
                 />
                 <button

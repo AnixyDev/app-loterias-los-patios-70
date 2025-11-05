@@ -70,7 +70,7 @@ const SavedPlays: React.FC<SavedPlaysProps> = ({ plays }) => {
 
 
         return (
-            <div className="bg-gray-900/70 p-3 rounded-lg border border-white/10 mb-2 transition-all hover:border-brand-gold/50">
+            <div className="bg-black/70 p-3 rounded-lg border border-white/10 mb-2 transition-all hover:border-brand-gold/50">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-brand-gold">{game.name}</p>

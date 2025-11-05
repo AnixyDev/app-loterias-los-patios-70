@@ -2,6 +2,50 @@ import React from 'react';
 import { FeaturedResult } from '../types';
 import { GAME_IMAGES } from '../constants';
 
+const formatCurrency = (value: string | number | undefined | null): string => {
+    if (value === null || value === undefined) return '';
+
+    const valueStr = String(value);
+    
+    // If the string does not contain any digits, it's likely a status message like "Sin Bote".
+    if (!/\d/.test(valueStr)) {
+        return valueStr;
+    }
+
+    // Prepare the string for parsing:
+    // 1. Remove currency symbols (€, $, etc.) and any whitespace.
+    // 2. In Spanish locale, '.' is a thousands separator, so remove it.
+    // 3. In Spanish locale, ',' is the decimal separator, so replace it with a '.' for parseFloat.
+    const numberString = valueStr
+        .replace(/[€$]/g, '')
+        .trim()
+        .replace(/\./g, '') 
+        .replace(',', '.');
+        
+    const number = parseFloat(numberString);
+    
+    // If parsing fails, return the original string to avoid showing "NaN".
+    if (isNaN(number)) {
+        return valueStr;
+    }
+    
+    const options: Intl.NumberFormatOptions = {
+        style: 'currency',
+        currency: 'EUR',
+    };
+
+    // For large integer values, don't show decimal places. For smaller prize values, do.
+    if (number % 1 === 0 && number >= 1000) {
+        options.minimumFractionDigits = 0;
+        options.maximumFractionDigits = 0;
+    } else {
+        options.minimumFractionDigits = 2;
+        options.maximumFractionDigits = 2;
+    }
+
+    return new Intl.NumberFormat('es-ES', options).format(number);
+};
+
 interface FeaturedResultBannerProps {
     results: FeaturedResult[];
     isLoading: boolean;
@@ -11,7 +55,7 @@ interface FeaturedResultBannerProps {
 const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, isLoading, error }) => {
 
     const SkeletonCard = () => (
-        <div className="bg-gray-900/50 border border-brand-gold/20 rounded-2xl p-4 animate-pulse flex-none w-72 h-48 mr-6">
+        <div className="bg-black/50 border border-brand-gold/20 rounded-2xl p-4 animate-pulse flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6">
             <div className="h-6 bg-gray-700 rounded w-3/4 mb-4"></div>
             <div className="h-10 bg-gray-700 rounded w-1/2 mb-4"></div>
             <div className="flex space-x-2">
@@ -28,7 +72,7 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
         const imageUrl = GAME_IMAGES[result.gameId] || GAME_IMAGES['default'];
         
         return (
-            <div className="relative bg-gray-900/50 border border-brand-gold/20 rounded-2xl p-4 overflow-hidden flex-none w-72 h-48 mr-6 flex flex-col justify-between transition-all duration-300 hover:border-brand-gold/40 hover:scale-105">
+            <div className="relative bg-black/50 border border-brand-gold/20 rounded-2xl p-4 overflow-hidden flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6 flex flex-col justify-between transition-all duration-300 hover:border-brand-gold/40 hover:scale-105 snap-start">
                 <div
                     style={{ backgroundImage: `url(${imageUrl})` }}
                     aria-label={result.gameName}
@@ -40,14 +84,14 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
                     <p className="text-xs text-gray-300">{result.date}</p>
                 </div>
                 <div className="relative z-10">
-                    <p className="text-3xl font-bold text-brand-gold leading-tight">{result.jackpot}</p>
+                    <p className="text-3xl font-bold text-brand-gold leading-tight">{formatCurrency(result.jackpot)}</p>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                        {result.mainNumbers.map((num, i) => (
+                        {result.mainNumbers && result.mainNumbers.map((num, i) => (
                             <span key={`main-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-white text-black rounded-full font-bold">
                                 {num}
                             </span>
                         ))}
-                        {result.specialNumbers && result.specialNumbers.map((num, i) => (
+                        {result.specialNumbers && (Array.isArray(result.specialNumbers) ? result.specialNumbers : [result.specialNumbers]).map((num, i) => (
                             <span key={`special-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-brand-gold text-black rounded-full font-bold">
                                 {num}
                             </span>
@@ -71,7 +115,7 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
 
         if (error) {
             return (
-                <div className="flex items-center justify-center h-48 bg-gray-900/50 border border-red-500/50 rounded-2xl p-4 text-red-400">
+                <div className="flex items-center justify-center h-48 bg-black/50 border border-red-500/50 rounded-2xl p-4 text-red-400">
                     <p>{error}</p>
                 </div>
             );
@@ -79,7 +123,7 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
 
         if (results.length === 0) {
             return (
-                 <div className="flex items-center justify-center h-48 bg-gray-900/50 border border-brand-gold/20 rounded-2xl p-4 text-gray-400">
+                 <div className="flex items-center justify-center h-48 bg-black/50 border border-brand-gold/20 rounded-2xl p-4 text-gray-400">
                     <p>No hay resultados destacados disponibles en este momento.</p>
                 </div>
             );
@@ -95,8 +139,8 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-4 text-brand-gold">Resultados Destacados</h2>
-            <div className="flex overflow-x-auto pb-4 -mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-brand-gold">Resultados Destacados</h2>
+            <div className="flex overflow-x-auto pb-4 -mb-4 snap-x snap-mandatory">
                 {renderContent()}
             </div>
         </div>

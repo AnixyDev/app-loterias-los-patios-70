@@ -27,6 +27,15 @@ const SimpleMarkdown: React.FC<{ text: string }> = React.memo(({ text }) => {
     return <>{renderedParts}</>;
 });
 
+const QuickActionButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
+    <button 
+        onClick={onClick}
+        className="px-3 py-1.5 text-sm bg-gray-800/70 border border-brand-gold/50 rounded-full text-brand-gold hover:bg-gray-800 hover:text-white transition-all duration-200"
+    >
+        {text}
+    </button>
+);
+
 
 const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, isBotTyping }) => {
     const [input, setInput] = useState('');
@@ -61,10 +70,22 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, 
         );
     };
 
+    const isInitialMessage = messages.length === 1 && messages[0].id === 'initial-message';
+
     return (
         <div className="flex flex-col h-full flex-grow min-h-0">
             <div className="flex-grow space-y-4 pr-2 -mr-2 overflow-y-auto">
-                {messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)}
+                {messages.map((msg) => (
+                    <div key={msg.id}>
+                        <MessageBubble message={msg} />
+                        {isInitialMessage && msg.sender === 'bot' && (
+                             <div className="flex flex-wrap gap-2 mt-3 animate-fade-in-up">
+                                <QuickActionButton text="Últimos resultados de Euromillones" onClick={() => onSendMessage('Dame los últimos resultados de Euromillones')} />
+                                <QuickActionButton text="Generar números para La Primitiva" onClick={() => onSendMessage('Quiero generar números para La Primitiva')} />
+                            </div>
+                        )}
+                    </div>
+                ))}
                 {isBotTyping && (
                     <div className="flex justify-start animate-fade-in-up">
                         <div className="px-4 py-3 rounded-2xl bg-gray-800 rounded-bl-none shadow-md">
@@ -85,11 +106,12 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, onSendMessage, 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Escribe tu pregunta aquí..."
-                        className="flex-grow p-3 border border-brand-gold/50 rounded-full focus:ring-2 focus:ring-brand-gold focus:outline-none bg-gray-900 text-white"
+                        className="flex-grow p-3 border border-brand-gold/50 rounded-full focus:ring-2 focus:ring-brand-gold focus:outline-none bg-black text-white"
                         disabled={isBotTyping}
                     />
                     <button
                         type="submit"
+                        // Fix: Corrected typo from isBotyping to isBotTyping.
                         disabled={isBotTyping || !input.trim()}
                         className="bg-brand-gold text-black p-3 rounded-full hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-gold disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                     >

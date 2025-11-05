@@ -1,149 +1,192 @@
 import React, { useState, useEffect } from 'react';
-import { LotteryGame } from '../types';
+import { LotteryGame, CheckResult } from '../types';
+import * as geminiService from '../services/geminiService';
 
 interface TicketCheckerProps {
     games: LotteryGame[];
-    onCheckTicket: (game: LotteryGame, mainNumbers: string[], specialNumbers: string[]) => void;
-    isChecking: boolean;
 }
 
-const TicketChecker: React.FC<TicketCheckerProps> = ({ games, onCheckTicket, isChecking }) => {
+const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
     const [selectedGameId, setSelectedGameId] = useState<string>(games[0]?.id || '');
-    const [mainNumbers, setMainNumbers] = useState<string[]>([]);
-    const [specialNumbers, setSpecialNumbers] = useState<string[]>([]);
-    const [errors, setErrors] = useState<string | null>(null);
+    const [mainNumbers, setMainNumbers] = useState<(string | number)[]>([]);
+    const [specialNumbers, setSpecialNumbers] = useState<(string | number)[]>([]);
+    const [addOnNumber, setAddOnNumber] = useState<string>('');
+    const [drawDate, setDrawDate] = useState<string>('');
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [result, setResult] = useState<CheckResult | null>(null);
 
     const selectedGame = games.find(g => g.id === selectedGameId);
 
+    // Reset inputs when game changes
     useEffect(() => {
         if (selectedGame) {
             setMainNumbers(Array(selectedGame.numbersToPick).fill(''));
             setSpecialNumbers(Array(selectedGame.specialNumbers?.count || 0).fill(''));
-            setErrors(null);
+            setAddOnNumber('');
+            setResult(null);
+            setError(null);
         }
     }, [selectedGameId, selectedGame]);
 
     const handleMainNumberChange = (index: number, value: string) => {
         const newNumbers = [...mainNumbers];
-        if (selectedGame && value.length <= String(selectedGame.maxNumber).length && /^\d*$/.test(value)) {
-            newNumbers[index] = value;
-            setMainNumbers(newNumbers);
-        }
+        newNumbers[index] = value;
+        setMainNumbers(newNumbers);
     };
 
     const handleSpecialNumberChange = (index: number, value: string) => {
         const newNumbers = [...specialNumbers];
-        if (selectedGame?.specialNumbers && value.length <= String(selectedGame.specialNumbers.max).length && /^\d*$/.test(value)) {
-            newNumbers[index] = value;
-            setSpecialNumbers(newNumbers);
-        }
+        newNumbers[index] = value;
+        setSpecialNumbers(newNumbers);
     };
 
-    const validateAndSubmit = () => {
+    const handleCheckTicket = async () => {
         if (!selectedGame) return;
 
-        const allMainFilled = mainNumbers.every(n => n.trim() !== '');
-        const allSpecialFilled = specialNumbers.every(n => n.trim() !== '');
-
-        if (!allMainFilled || !allSpecialFilled) {
-            setErrors('Por favor, rellena todos los números de tu jugada.');
+        const parsedMain = mainNumbers.map(n => parseInt(String(n), 10)).filter(n => !isNaN(n));
+        if (parsedMain.length !== selectedGame.numbersToPick) {
+            setError(`Por favor, introduce ${selectedGame.numbersToPick} números principales.`);
             return;
         }
 
-        const mainNumbersInt = mainNumbers.map(n => parseInt(n, 10));
-        const specialNumbersInt = specialNumbers.map(n => parseInt(n, 10));
-
-        if (mainNumbersInt.some(n => isNaN(n) || n < 1 || n > selectedGame.maxNumber) ||
-            (selectedGame.specialNumbers && specialNumbersInt.some(n => isNaN(n) || n < 1 || n > selectedGame.specialNumbers!.max))) {
-            setErrors(`Por favor, introduce números válidos para ${selectedGame.name}.`);
+        const parsedSpecial = specialNumbers.map(n => parseInt(String(n), 10)).filter(n => !isNaN(n));
+        if (selectedGame.specialNumbers && parsedSpecial.length !== selectedGame.specialNumbers.count) {
+             setError(`Por favor, introduce ${selectedGame.specialNumbers.count} ${selectedGame.specialNumbers.name}.`);
+            return;
+        }
+        
+        const parsedAddOn = parseInt(addOnNumber, 10);
+         if (selectedGame.addOn && isNaN(parsedAddOn)) {
+             setError(`Por favor, introduce el número de ${selectedGame.addOn.name}.`);
             return;
         }
 
-        setErrors(null);
-        onCheckTicket(selectedGame, mainNumbers, specialNumbers);
+        setIsLoading(true);
+        setError(null);
+        setResult(null);
+
+        try {
+            const checkData: { main: number[], special?: number[], addOn?: number } = { main: parsedMain };
+            if (parsedSpecial.length > 0) checkData.special = parsedSpecial;
+            if (!isNaN(parsedAddOn)) checkData.addOn = parsedAddOn;
+
+            const apiResult = await geminiService.checkTicket(selectedGame, checkData, drawDate);
+            setResult(apiResult);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Ocurrió un error desconocido.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const numberInputClass = "w-14 h-14 text-center bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none text-lg font-bold";
-
-    return (
-        <div className="flex flex-col h-full">
-            <div className="space-y-6">
-                <div>
-                    <label htmlFor="game-select-checker" className="block text-sm font-medium text-gray-300 mb-2">
-                        Sorteo
-                    </label>
-                    <select
-                        id="game-select-checker"
-                        value={selectedGameId}
-                        onChange={(e) => setSelectedGameId(e.target.value)}
-                        className="w-full p-3 bg-gray-900 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
-                    >
-                        {games.map(game => (
-                            <option key={game.id} value={game.id}>{game.name}</option>
-                        ))}
-                    </select>
+    const renderResult = () => {
+        if (isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center p-6 bg-gray-800/50 border border-brand-gold/50 rounded-lg mt-6">
+                    <svg className="animate-spin h-8 w-8 text-brand-gold mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-lg font-semibold text-brand-gold">Comprobando tu boleto...</p>
                 </div>
+            );
+        }
 
-                {selectedGame && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                {selectedGame.id === 'nacional' ? 'Número' : 'Números Principales'}
-                            </label>
-                            <div className="flex flex-wrap gap-3">
-                                {mainNumbers.map((num, index) => (
-                                    <input
-                                        key={`main-${index}`}
-                                        type="tel" // Use tel for better mobile numeric keyboard
-                                        value={num}
-                                        onChange={(e) => handleMainNumberChange(index, e.target.value)}
-                                        className={numberInputClass}
-                                    />
-                                ))}
-                            </div>
-                        </div>
+        if (error) {
+            return <p className="text-red-400 text-sm mt-4 text-center">{error}</p>;
+        }
+        
+        if (!result) return null;
 
-                        {selectedGame.specialNumbers && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    {selectedGame.specialNumbers.name}
-                                </label>
-                                <div className="flex flex-wrap gap-3">
-                                    {specialNumbers.map((num, index) => (
-                                        <input
-                                            key={`special-${index}`}
-                                            type="tel"
-                                            value={num}
-                                            onChange={(e) => handleSpecialNumberChange(index, e.target.value)}
-                                            className={`${numberInputClass} border-brand-gold`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {errors && <p className="text-red-400 text-sm mt-4">{errors}</p>}
-
-                <div className="pt-4">
-                    <button
-                        onClick={validateAndSubmit}
-                        disabled={isChecking}
-                        className="w-full px-8 py-3 bg-brand-gold text-black font-bold rounded-lg hover:opacity-90 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-brand-gold/20 hover:shadow-xl hover:shadow-brand-gold/40 transform hover:scale-105 flex items-center justify-center"
-                    >
-                        {isChecking ? (
-                            <>
-                               <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Comprobando...
-                            </>
-                        ) : 'Comprobar Jugada'}
-                    </button>
+        return (
+             <div className={`mt-6 p-4 rounded-lg animate-fade-in-up text-center border ${result.isWinner ? 'bg-green-900/30 border-green-500/50' : 'bg-red-900/30 border-red-500/50'}`}>
+                <h3 className="text-xl font-bold mb-2">{result.isWinner ? '🎉 ¡Enhorabuena, tienes un premio! 🎉' : 'Lo sentimos, tu boleto no tiene premio.'}</h3>
+                <p className="text-lg mb-3">{result.message}</p>
+                 {result.isWinner && <p className="text-2xl font-bold text-brand-gold mb-4">Premio: {result.prizeAmount}</p>}
+                
+                <div className="text-left text-sm space-y-2 mt-4 bg-black/30 p-3 rounded-md">
+                    <p><span className="font-semibold text-gray-300">Sorteo del:</span> {result.drawDate || 'Último sorteo'}</p>
+                    <p><span className="font-semibold text-gray-300">Combinación Ganadora:</span> {result.winningNumbers.main.join(', ')} {result.winningNumbers.special && result.winningNumbers.special.length > 0 ? ` | ${result.winningNumbers.special.join(', ')}` : ''}</p>
+                    {result.matchedNumbers && (result.matchedNumbers.main.length > 0 || (result.matchedNumbers.special && result.matchedNumbers.special.length > 0)) && (
+                         <p><span className="font-semibold text-gray-300">Tus Aciertos:</span> <span className="text-green-400 font-bold">{result.matchedNumbers.main.join(', ')}</span> {result.matchedNumbers.special && result.matchedNumbers.special.length > 0 ? ` | <span className="text-green-400 font-bold">${result.matchedNumbers.special.join(', ')}</span>` : ''}</p>
+                    )}
                 </div>
             </div>
+        );
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                 <select
+                    value={selectedGameId}
+                    onChange={(e) => setSelectedGameId(e.target.value)}
+                    className="w-full p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
+                >
+                    {games.map(game => (
+                        <option key={game.id} value={game.id}>
+                            {game.name}
+                        </option>
+                    ))}
+                </select>
+                <input
+                    type="date"
+                    value={drawDate}
+                    onChange={(e) => setDrawDate(e.target.value)}
+                    placeholder="Fecha del sorteo (opcional)"
+                    className="w-full p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none text-gray-300"
+                    aria-label="Seleccionar fecha del sorteo"
+                />
+            </div>
+
+            {selectedGame && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Números Principales ({selectedGame.numbersToPick})
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {mainNumbers.map((num, i) => (
+                            <input key={i} type="number" value={num} onChange={(e) => handleMainNumberChange(i, e.target.value)} className="w-14 p-2 text-center bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none" />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {selectedGame?.specialNumbers && (
+                 <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        {selectedGame.specialNumbers.name} ({selectedGame.specialNumbers.count})
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {specialNumbers.map((num, i) => (
+                            <input key={i} type="number" value={num} onChange={(e) => handleSpecialNumberChange(i, e.target.value)} className="w-14 p-2 text-center bg-brand-gold/20 border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none" />
+                        ))}
+                    </div>
+                </div>
+            )}
+            
+            {selectedGame?.addOn && (
+                 <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        {selectedGame.addOn.name}
+                    </label>
+                    <input type="number" value={addOnNumber} onChange={(e) => setAddOnNumber(e.target.value)} className="p-2 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none" />
+                </div>
+            )}
+            
+            <div className="flex justify-end mt-4">
+                 <button
+                    onClick={handleCheckTicket}
+                    disabled={isLoading}
+                    className="w-full sm:w-auto px-8 py-3 bg-brand-gold text-black font-bold rounded-lg hover:opacity-90 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
+                >
+                    {isLoading ? 'Comprobando...' : 'Comprobar Boleto'}
+                </button>
+            </div>
+            
+            {renderResult()}
         </div>
     );
 };
