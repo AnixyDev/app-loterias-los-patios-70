@@ -424,6 +424,28 @@ function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
 }
 
 // ===========================================================================
+//  MODO DUMP (CLI, con red) — vuelca el JSON crudo de SELAE para un game_id.
+//  Útil para conseguir muestras de juegos nuevos (Lotería Nacional = LNAC).
+//    php loteria-oficial.php dump LNAC 20261101 20261108 > lnac.json
+// ===========================================================================
+if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'dump') {
+    $gid  = $argv[2] ?? '';
+    $from = $argv[3] ?? date('Ymd', strtotime('-10 days'));
+    $to   = $argv[4] ?? date('Ymd');
+    if ($gid === '') {
+        fwrite(STDERR, "Uso: php loteria-oficial.php dump <game_id> <YYYYMMDD> <YYYYMMDD>\n");
+        exit(1);
+    }
+    $data = fetch_selae($gid, $from, $to);
+    if ($data === null) {
+        fwrite(STDERR, "Sin datos (¿game_id o fechas incorrectos, o bloqueo de red?).\n");
+        exit(1);
+    }
+    echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+    exit;
+}
+
+// ===========================================================================
 //  MODO TEST (CLI, sin red)
 // ===========================================================================
 if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'testresults') {
