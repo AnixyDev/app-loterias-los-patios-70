@@ -217,29 +217,56 @@ function map_ticker(string $game, array $s): array {
     ];
 }
 
+const SELAE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 /** Descarga de SELAE los sorteos de un juego en un rango de fechas (YYYYMMDD). */
 function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
-    $url = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id={$gameId}"
-         . "&celebrados=true&fechaInicioInclusiva={$fromYmd}&fechaFinInclusiva={$toYmd}";
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
+    // SELAE está tras Akamai Bot Manager. Estrategia: 1) visitar una página normal
+    // para que Akamai nos entregue sus cookies; 2) llamar al API reusándolas y
+    // mandando las cabeceras que manda el navegador (incl. X-Requested-With).
+    $cookieFile = tempnam(sys_get_temp_dir(), 'selae_');
+
+    $comun = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 25,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_ENCODING       => '',   // acepta gzip/deflate (Akamai lo espera)
-        // SELAE está tras Akamai y bloquea peticiones que no parezcan un navegador:
-        // hay que mandar un User-Agent y cabeceras realistas de Chrome.
-        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        CURLOPT_HTTPHEADER     => [
+        CURLOPT_ENCODING       => '',
+        CURLOPT_USERAGENT      => SELAE_UA,
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
+    ];
+
+    // 1) Calentar: recoger cookies de Akamai desde una página de resultados.
+    $ch = curl_init('https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos');
+    curl_setopt_array($ch, $comun + [
+        CURLOPT_HTTPHEADER => [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language: es-ES,es;q=0.9',
+            'Upgrade-Insecure-Requests: 1',
+        ],
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+
+    // 2) Llamada real al API, reusando las cookies.
+    $url = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id={$gameId}"
+         . "&celebrados=true&fechaInicioInclusiva={$fromYmd}&fechaFinInclusiva={$toYmd}";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, $comun + [
+        CURLOPT_HTTPHEADER => [
             'Accept: application/json, text/plain, */*',
             'Accept-Language: es-ES,es;q=0.9',
             'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
+            'X-Requested-With: XMLHttpRequest',
+            'Origin: https://www.loteriasyapuestas.es',
             'Connection: keep-alive',
         ],
     ]);
     $resp = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    @unlink($cookieFile);
+
     if ($resp === false || $code < 200 || $code >= 300) return null;
     $data = json_decode($resp, true);
     return is_array($data) ? $data : null;
