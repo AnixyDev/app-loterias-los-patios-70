@@ -3,6 +3,7 @@ import {
     GenerationStrategy,
     GeneratedNumbers
 } from '../types';
+import { parseGeneratedNumbers } from './generatorSchema';
 
 /**
  * La app ya NO habla con Gemini directamente (eso expondría la clave en el
@@ -75,5 +76,8 @@ export const generateNumbers = async (
         { game, strategy, includeAddOn, inspirationText },
         'generador de números'
     );
-    return parseJson<GeneratedNumbers>(text, 'generador de números');
+    // 1) Parseamos el texto a JSON (quitando ```json si lo hubiera).
+    const raw = parseJson<unknown>(text, 'generador de números');
+    // 2) Validamos la forma y las reglas del juego antes de devolverlo.
+    return parseGeneratedNumbers(raw, game, includeAddOn);
 };
