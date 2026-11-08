@@ -183,6 +183,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
                  <select
                     value={selectedGameId}
                     onChange={handleGameChange}
+                    aria-label="Juego"
                     className="w-full sm:flex-grow p-3 bg-black border border-brand-gold/50 rounded-lg focus:ring-2 focus:ring-brand-gold focus:outline-none"
                 >
                     {games.map(game => (

@@ -146,8 +146,8 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
     };
 
     const spinner = (
-        <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-brand-gold/50 bg-gray-800/50 p-6">
-            <svg className="mb-3 h-8 w-8 animate-spin text-brand-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-brand-gold/50 bg-gray-800/50 p-6" role="status">
+            <svg className="mb-3 h-8 w-8 animate-spin text-brand-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
@@ -246,7 +246,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                     onClick={() => { setError(null); setShowScanner(true); }}
                     className="flex items-center justify-center gap-2 rounded-lg border border-brand-gold/60 px-4 py-2 font-semibold text-brand-gold hover:bg-brand-gold/10"
                 >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 7V4h3M4 17v3h3M20 7V4h-3M20 17v3h-3M8 12h8" />
                     </svg>
                     Escanear QR
@@ -257,6 +257,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                 <select
                     value={selectedGameId}
                     onChange={(e) => setSelectedGameId(e.target.value)}
+                    aria-label="Juego"
                     className="w-full rounded-lg border border-brand-gold/50 bg-black p-3 focus:outline-none focus:ring-2 focus:ring-brand-gold"
                 >
                     {juegos.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -283,6 +284,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                         value={numeroDecimo}
                         onChange={(e) => setNumeroDecimo(e.target.value.replace(/\D/g, '').slice(0, 5))}
                         placeholder="Ej.: 06983"
+                        aria-label="Número del décimo"
                         className="w-40 rounded-lg border border-brand-gold/50 bg-black p-3 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-gold"
                     />
                     <p className="mt-2 text-xs text-gray-500">
@@ -301,6 +303,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                         {mainNumbers.map((num, i) => (
                             <input key={i} type="number" inputMode="numeric" value={num}
                                 onChange={(e) => handleMainChange(i, e.target.value)}
+                                aria-label={`Número ${i + 1}`}
                                 className="w-14 rounded-lg border border-brand-gold/50 bg-black p-2 text-center focus:outline-none focus:ring-2 focus:ring-brand-gold" />
                         ))}
                     </div>
@@ -316,6 +319,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                         {specialNumbers.map((num, i) => (
                             <input key={i} type="number" inputMode="numeric" value={num}
                                 onChange={(e) => handleSpecialChange(i, e.target.value)}
+                                aria-label={`${selectedGame?.specialNumbers?.name ?? 'Especial'} ${i + 1}`}
                                 className="w-14 rounded-lg border border-brand-gold/50 bg-brand-gold/20 p-2 text-center focus:outline-none focus:ring-2 focus:ring-brand-gold" />
                         ))}
                     </div>
@@ -332,7 +336,9 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                 </button>
             </div>
 
-            {esNacional ? renderNacional() : renderResult()}
+            <div aria-live="polite">
+                {esNacional ? renderNacional() : renderResult()}
+            </div>
         </div>
     );
 };
