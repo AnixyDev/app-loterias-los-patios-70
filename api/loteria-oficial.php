@@ -225,8 +225,17 @@ function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 25,
-        CURLOPT_HTTPHEADER     => ['Accept: application/json'],
-        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LosPatios70/1.0)',
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_ENCODING       => '',   // acepta gzip/deflate (Akamai lo espera)
+        // SELAE está tras Akamai y bloquea peticiones que no parezcan un navegador:
+        // hay que mandar un User-Agent y cabeceras realistas de Chrome.
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        CURLOPT_HTTPHEADER     => [
+            'Accept: application/json, text/plain, */*',
+            'Accept-Language: es-ES,es;q=0.9',
+            'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
+            'Connection: keep-alive',
+        ],
     ]);
     $resp = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
