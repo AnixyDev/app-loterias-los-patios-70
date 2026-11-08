@@ -41,7 +41,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
             if (!ctx) return;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
 
             if (code && code.data) {
                 const ticket = parseQrTicket(code.data);
@@ -59,7 +59,11 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
         (async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
+                    video: {
+                        facingMode: 'environment',
+                        width:  { ideal: 1920 },   // más resolución = QR densos de resguardo legibles
+                        height: { ideal: 1080 },
+                    },
                     audio: false,
                 });
                 if (cancelado) { stream.getTracks().forEach((t) => t.stop()); return; }
