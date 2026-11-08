@@ -18,6 +18,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     const rafRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [aviso, setAviso] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelado = false;
@@ -49,7 +50,8 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
                     onDetect(ticket);
                     return;
                 }
-                // QR leído pero no es un resguardo SELAE: seguimos escaneando.
+                // Leímos un código, pero no tiene el formato de un resguardo de SELAE.
+                setAviso('He leído un código, pero no parece un resguardo de SELAE (¿es un décimo de Lotería Nacional o un código de barras?).');
             }
             rafRef.current = requestAnimationFrame(tick);
         };
@@ -82,8 +84,8 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
                 <canvas ref={canvasRef} className="hidden" />
                 <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-brand-gold/70" />
             </div>
-            <p className="mt-4 text-center text-sm text-gray-200">
-                {error || 'Enfoca el código QR del resguardo'}
+            <p className="mt-4 max-w-sm text-center text-sm text-gray-200">
+                {error || aviso || 'Enfoca el código QR del resguardo'}
             </p>
             <button
                 onClick={onClose}
