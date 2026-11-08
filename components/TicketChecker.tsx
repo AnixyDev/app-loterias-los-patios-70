@@ -13,6 +13,41 @@ interface TicketCheckerProps {
     games: LotteryGame[];
 }
 
+// Nombres legibles de juegos que el QR reconoce pero el comprobador aún no maneja.
+const NOMBRE_JUEGO: Record<string, string> = {
+    nacional: 'Lotería Nacional',
+    quiniela: 'La Quiniela',
+};
+
+const fechaBonita = (iso: string | null): string => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return d && m && y ? `${d}/${m}/${y}` : iso;
+};
+
+/**
+ * Mensaje para cuando el QR se lee bien pero es de un juego que todavía no se
+ * comprueba aquí. Para Lotería Nacional mostramos los datos del décimo que SÍ
+ * hemos leído (número, serie, fracción, sorteo), para que quede claro que el
+ * lector funciona y el usuario pueda comprobarlo en la web oficial.
+ */
+const mensajeJuegoNoSoportado = (ticket: QrTicket): string => {
+    if (ticket.game === 'nacional') {
+        const datos = [
+            ticket.numero ? `número ${ticket.numero}` : null,
+            ticket.serie ? `serie ${ticket.serie}` : null,
+            ticket.fraccion ? `fracción ${ticket.fraccion}` : null,
+            ticket.fecha ? `sorteo del ${fechaBonita(ticket.fecha)}` : null,
+        ].filter(Boolean).join(', ');
+        return `He leído un décimo de Lotería Nacional${datos ? ` (${datos})` : ''}. `
+            + 'La comprobación de Lotería Nacional todavía no está disponible aquí; '
+            + 'puedes comprobarlo en la web oficial de SELAE.';
+    }
+    const nombre = ticket.game ? NOMBRE_JUEGO[ticket.game] : null;
+    return `He leído un resguardo${nombre ? ` de ${nombre}` : ''} de un juego que todavía `
+        + 'no se comprueba aquí. Puedes comprobarlo en la web oficial de SELAE.';
+};
+
 const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
     // Solo los juegos que el comprobador oficial soporta hoy.
     const juegos = games.filter((g) => esJuegoOficial(g.id));
@@ -73,7 +108,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
     const handleQrDetected = (ticket: QrTicket) => {
         setShowScanner(false);
         if (!ticket.game || !esJuegoOficial(ticket.game)) {
-            setError('Ese resguardo es de un juego que aún no se comprueba aquí. Usa el comprobador oficial de SELAE.');
+            setError(mensajeJuegoNoSoportado(ticket));
             return;
         }
         const game = juegos.find((g) => g.id === ticket.game);
