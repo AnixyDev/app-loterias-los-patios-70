@@ -1,0 +1,13 @@
+{
+  "_nota": "Fixture sintético con la forma de un sorteo de SELAE (no es un sorteo real).",
+  "combinacion": "09 - 13 - 19 - 25 - 26 - 30 C(34) R(4)",
+  "escrutinio": [
+    {"tipo": "Especial (6 Aciertos + R)", "premio": "5000000"},
+    {"tipo": "1ª Categoría (6 Aciertos)", "premio": "500000"},
+    {"tipo": "2ª Categoría (5 Aciertos + C)", "premio": "50000"},
+    {"tipo": "3ª Categoría (5 Aciertos)", "premio": "1000"},
+    {"tipo": "4ª Categoría (4 Aciertos)", "premio": "50"},
+    {"tipo": "5ª Categoría (3 Aciertos)", "premio": "8"},
+    {"tipo": "Reintegro", "premio": "1"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_nota": "Fixture sintético con la forma de un sorteo de SELAE (no es un sorteo real).",
+  "combinacion": "03 - 11 - 22 - 33 - 40 - 45 C(7) R(2)",
+  "escrutinio": [
+    {"tipo": "1ª Categoría (6 Aciertos)", "premio": "100000"},
+    {"tipo": "4ª Categoría (4 Aciertos)", "premio": "25"},
+    {"tipo": "Reintegro", "premio": "0.50"}
+  ]
+}

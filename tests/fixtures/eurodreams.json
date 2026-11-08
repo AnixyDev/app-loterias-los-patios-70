@@ -1,0 +1,12 @@
+{
+  "_nota": "Fixture sintético con la forma de un sorteo de SELAE (no es un sorteo real).",
+  "combinacion": "01 - 02 - 03 - 04 - 05 - 06 C(3)",
+  "escrutinio": [
+    {"tipo": "Categoría 1 (6 + 1)", "premio": "20000"},
+    {"tipo": "Categoría 2 (6 + 0)", "premio": "2000"},
+    {"tipo": "Categoría 3 (5 + 0/1)", "premio": "500"},
+    {"tipo": "Categoría 5 (4 + 0/1)", "premio": "20"},
+    {"tipo": "Categoría 6 (3 + 0/1)", "premio": "6"},
+    {"tipo": "Categoría 8 (2 + 0/1)", "premio": "4"}
+  ]
+}

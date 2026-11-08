@@ -23,5 +23,17 @@ jobs:
       - name: Comprobar tipos (TypeScript)
         run: npm run typecheck
 
+      - name: Tests (JS: parser QR + validación del generador)
+        run: npm test
+
+      - name: Preparar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: json, mbstring
+
+      - name: Tests (PHP: comprobador de boletos y décimos)
+        run: npm run test:php
+
       - name: Compilar (Vite)
         run: npm run build
