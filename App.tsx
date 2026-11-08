@@ -6,8 +6,11 @@ import TicketChecker from './components/TicketChecker';
 import GeneratorTab from './components/GeneratorTab';
 import FeaturedResultBanner from './components/FeaturedResultBanner';
 import WeeklyResultsTicker from './components/WeeklyResultsTicker';
-import { LOTTERY_GAMES } from './constants';
-import { fetchFeaturedOficial, fetchTickerOficial, fetchResultsOficial } from './services/loteriaOficial';
+import { LOTTERY_GAMES, JUEGOS_GENERADOR } from './constants';
+import { fetchFeaturedOficial, fetchTickerOficial, fetchResultsOficial, esJuegoOficial } from './services/loteriaOficial';
+
+// Juegos con historial de resultados oficiales (los de combinación).
+const JUEGOS_CON_RESULTADOS = LOTTERY_GAMES.filter((g) => esJuegoOficial(g.id));
 import { 
     LotteryGame, 
     LotteryResult,
@@ -115,7 +118,7 @@ const App: React.FC = () => {
                             <div>
                                 {activeTab === 'history' && (
                                      <ResultsHistory
-                                        games={LOTTERY_GAMES}
+                                        games={JUEGOS_CON_RESULTADOS}
                                         history={historyResults}
                                         isLoading={isHistoryLoading}
                                         error={historyError}
@@ -126,7 +129,7 @@ const App: React.FC = () => {
                                      <TicketChecker games={LOTTERY_GAMES} />
                                 )}
                                  {activeTab === 'generator' && (
-                                     <GeneratorTab games={LOTTERY_GAMES} />
+                                     <GeneratorTab games={JUEGOS_GENERADOR} />
                                 )}
                             </div>
                         </div>
