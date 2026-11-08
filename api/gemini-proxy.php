@@ -140,63 +140,6 @@ function build_request(string $action, array $p): array {
 
     switch ($action) {
 
-        case 'featured':
-            $prompt = "Provide the latest featured lottery results for Spain. I need the 3 most important ones, "
-                . "typically Euromillones, Primitiva, and Eurodreams. For each game, give me the game ID, game name, "
-                . "draw date (in \"DD/MM/YYYY\" format), the main jackpot amount as a number (or a string like \"Sin Bote\"), "
-                . "the main winning numbers, and special numbers (if any). The game IDs should be: 'euromillones', "
-                . "'primitiva', 'eurodreams'.";
-            $schema = ['type' => 'ARRAY', 'items' => ['type' => 'OBJECT', 'properties' => [
-                'gameId'         => ['type' => 'STRING'],
-                'gameName'       => ['type' => 'STRING'],
-                'date'           => ['type' => 'STRING'],
-                'jackpot'        => ['type' => 'STRING'],
-                'mainNumbers'    => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                'specialNumbers' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-            ], 'required' => ['gameId', 'gameName', 'date', 'jackpot', 'mainNumbers']]];
-            return [$prompt, $schema];
-
-        case 'weeklyTicker':
-            $prompt = "Provide a ticker of the latest results for about 5-7 main Spanish lotteries from the last 7 days "
-                . "(e.g., Bonoloto, Gordo, Nacional, Quiniela). For each, provide the game name, a compact string "
-                . "representation of the winning numbers, and the draw date in \"DD/MM\" format. "
-                . "Example for Bonoloto: \"6, 12, 23, 34, 45, 48 C(9) R(1)\".";
-            $schema = ['type' => 'ARRAY', 'items' => ['type' => 'OBJECT', 'properties' => [
-                'gameName' => ['type' => 'STRING'],
-                'numbers'  => ['type' => 'STRING'],
-                'date'     => ['type' => 'STRING'],
-            ], 'required' => ['gameName', 'numbers', 'date']]];
-            return [$prompt, $schema];
-
-        case 'latestResults':
-            $game = is_array($p['game'] ?? null) ? $p['game'] : [];
-            $name = (string) ($game['name'] ?? '');
-            if ($name === '') return [null, null];
-            $date       = isset($p['date']) ? (string) $p['date'] : '';
-            $specialNm  = (string) ($game['specialNumbers']['name'] ?? '');
-            $dateQuery  = $date !== '' ? "for the draw on or nearest to the date {$date}" : 'for the most recent draw';
-            $prompt = "Get the lottery results for the game \"{$name}\" in Spain, {$dateQuery}. "
-                . "If it's a game with daily draws (like Bonoloto) and no date is specified, return the last 3 results. "
-                . "Otherwise, get the single most recent result. Provide the draw date, main numbers, special numbers "
-                . "(if any, using the correct name like \"{$specialNm}\"), the main jackpot amount (as a string), the next "
-                . "jackpot amount (if available, as a string), and a detailed prize tiers breakdown (category, number of "
-                . "winners, prize per winner). If a jackpot was won, mention the location(s) where the winning ticket was "
-                . "sold if that information is public.";
-            $schema = ['type' => 'ARRAY', 'items' => ['type' => 'OBJECT', 'properties' => [
-                'date'           => ['type' => 'STRING'],
-                'jackpot'        => ['type' => 'STRING'],
-                'nextJackpot'    => ['type' => 'STRING'],
-                'mainNumbers'    => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                'specialNumbers' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                'prizeLocation'  => ['type' => 'STRING'],
-                'prizeTiers'     => ['type' => 'ARRAY', 'items' => ['type' => 'OBJECT', 'properties' => [
-                    'category' => ['type' => 'STRING'],
-                    'winners'  => ['type' => 'STRING'],
-                    'prize'    => ['type' => 'STRING'],
-                ], 'required' => ['category', 'winners', 'prize']]],
-            ], 'required' => ['date', 'mainNumbers']]];
-            return [$prompt, $schema];
-
         case 'generateNumbers':
             $game = is_array($p['game'] ?? null) ? $p['game'] : [];
             $name = (string) ($game['name'] ?? '');
