@@ -132,7 +132,9 @@ exit;
 
 
 // ===========================================================================
-//  Definición de las 6 acciones permitidas (prompt + esquema por acción).
+//  Definición de las acciones permitidas (prompt + esquema por acción).
+//  Tras pasar el comprobador y los resultados a datos oficiales de SELAE,
+//  la única acción que usa IA es 'generateNumbers'.
 //  Nota: en el esquema REST de Gemini no existe un tipo "ANY"; donde el valor
 //  puede ser número o texto usamos STRING y la app ya acepta string|number.
 // ===========================================================================
@@ -177,18 +179,6 @@ function build_request(string $action, array $p): array {
                 ]],
             ], 'required' => ['main']];
             return [$prompt, $schema];
-
-        case 'chat':
-            $newMessage = (string) ($p['newMessage'] ?? '');
-            $history    = isset($p['history']) ? $p['history'] : [];
-            $historyJson = json_encode($history);
-            $prompt = "You are a helpful assistant for a Spanish lottery results website called "
-                . "\"Asistente de Loterías Los Patios 70\". The user's latest message is: \"{$newMessage}\". "
-                . "Previous conversation for context: {$historyJson}. Answer the user's question concisely and accurately. "
-                . "You can talk about lottery results, how to play, or generate numbers. If asked to generate numbers, "
-                . "suggest they use the \"Generador\" tab for a better experience. If asked for results, suggest they use "
-                . "the \"Historial\" tab for detailed information. Keep responses short, friendly, and helpful.";
-            return [$prompt, null]; // texto libre, sin esquema JSON
 
         default:
             return [null, null];

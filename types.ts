@@ -67,12 +67,6 @@ export interface GeneratedNumbers {
     };
 }
 
-export interface ChatMessage {
-    id: string;
-    text: string;
-    sender: 'user' | 'bot';
-}
-
 export interface CheckResult {
     isWinner: boolean;
     prizeAmount: string; // Keep as string for "Pendiente de Escrutinio" etc.
