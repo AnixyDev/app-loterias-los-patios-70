@@ -1,8 +1,9 @@
 /**
  * loteriaOficial.ts
- * Cliente del comprobador OFICIAL (api/loteria-oficial.php).
- * Sustituye a la comprobación por IA: los resultados vienen del escrutinio de SELAE.
+ * Cliente de los DATOS OFICIALES de SELAE (api/loteria-oficial.php):
+ * comprobador de boletos, historial, destacados y ticker. Sustituye a la IA.
  */
+import { LotteryGame, LotteryResult, FeaturedResult, WeeklyTickerResult } from '../types';
 
 const PROXY_URL =
     (import.meta.env.VITE_OFICIAL_PROXY_URL as string | undefined) ||
@@ -80,4 +81,45 @@ export const checkTicketOficial = async (
         matchedMain: Array.isArray(data?.aciertos?.main) ? data.aciertos.main : [],
         drawDate: date,
     };
+};
+
+// ---------------------------------------------------------------------------
+//  Resultados oficiales (Historial, Destacados, Ticker)
+// ---------------------------------------------------------------------------
+
+/** POST genérico al endpoint oficial; devuelve el JSON ya parseado. */
+const postOficial = async (action: string, payload: unknown, contexto: string): Promise<any> => {
+    let res: Response;
+    try {
+        res = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, payload }),
+        });
+    } catch {
+        throw new Error(`Sin conexión con el servidor (${contexto}).`);
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : `Error del servidor (${contexto}).`);
+    }
+    return data;
+};
+
+/** Resultados oficiales de un juego (pestaña Historial). */
+export const fetchResultsOficial = async (game: LotteryGame, date?: string): Promise<LotteryResult[]> => {
+    const data = await postOficial('getResults', { game: game.id, date: date || '' }, 'historial');
+    return Array.isArray(data) ? (data as LotteryResult[]) : [];
+};
+
+/** Resultados destacados (Euromillones, Primitiva, EuroDreams). */
+export const fetchFeaturedOficial = async (): Promise<FeaturedResult[]> => {
+    const data = await postOficial('getFeatured', {}, 'destacados');
+    return Array.isArray(data) ? (data as FeaturedResult[]) : [];
+};
+
+/** Ticker de últimos resultados de varios juegos. */
+export const fetchTickerOficial = async (): Promise<WeeklyTickerResult[]> => {
+    const data = await postOficial('getTicker', {}, 'ticker');
+    return Array.isArray(data) ? (data as WeeklyTickerResult[]) : [];
 };

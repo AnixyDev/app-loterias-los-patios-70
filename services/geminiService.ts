@@ -1,8 +1,5 @@
 import {
     LotteryGame,
-    LotteryResult,
-    FeaturedResult,
-    WeeklyTickerResult,
     GenerationStrategy,
     GeneratedNumbers,
     ChatMessage
@@ -66,21 +63,6 @@ const parseJson = <T>(jsonString: string, context: string): T => {
         console.error(`Error parsing JSON for ${context}:`, error, jsonString);
         throw new Error(`Respuesta inválida del servidor al procesar ${context}.`);
     }
-};
-
-export const fetchFeaturedResults = async (): Promise<FeaturedResult[]> => {
-    const text = await callProxy('featured', {}, 'resultados destacados');
-    return parseJson<FeaturedResult[]>(text, 'resultados destacados');
-};
-
-export const fetchWeeklyTickerResults = async (): Promise<WeeklyTickerResult[]> => {
-    const text = await callProxy('weeklyTicker', {}, 'ticker de resultados');
-    return parseJson<WeeklyTickerResult[]>(text, 'ticker de resultados');
-};
-
-export const fetchLatestResults = async (game: LotteryGame, date?: string): Promise<LotteryResult[]> => {
-    const text = await callProxy('latestResults', { game, date }, 'historial de resultados');
-    return parseJson<LotteryResult[]>(text, 'historial de resultados');
 };
 
 export const generateNumbers = async (

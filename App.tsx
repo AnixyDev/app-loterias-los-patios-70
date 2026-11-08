@@ -7,7 +7,7 @@ import GeneratorTab from './components/GeneratorTab';
 import FeaturedResultBanner from './components/FeaturedResultBanner';
 import WeeklyResultsTicker from './components/WeeklyResultsTicker';
 import { LOTTERY_GAMES } from './constants';
-import * as geminiService from './services/geminiService';
+import { fetchFeaturedOficial, fetchTickerOficial, fetchResultsOficial } from './services/loteriaOficial';
 import { 
     LotteryGame, 
     LotteryResult,
@@ -45,8 +45,8 @@ const App: React.FC = () => {
         try {
             // Use Promise.allSettled to avoid one failing request from blocking the other
             const [featured, ticker] = await Promise.allSettled([
-                geminiService.fetchFeaturedResults(),
-                geminiService.fetchWeeklyTickerResults()
+                fetchFeaturedOficial(),
+                fetchTickerOficial()
             ]);
 
             if (featured.status === 'fulfilled') {
@@ -81,7 +81,7 @@ const App: React.FC = () => {
         setHistoryError(null);
         setHistoryResults([]);
         try {
-            const results = await geminiService.fetchLatestResults(game, date);
+            const results = await fetchResultsOficial(game, date);
             setHistoryResults(results);
         } catch (error) {
             setHistoryError(error instanceof Error ? error.message : 'An unknown error occurred.');

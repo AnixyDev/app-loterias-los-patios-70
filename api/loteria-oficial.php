@@ -68,7 +68,7 @@ function resultado(string $game, array $parsed, array $aciertos, array $nAc, ?ar
         'aciertos'    => $aciertos,
         'nAciertos'   => $nAc,
         'categoria'   => $cat['categoria'] ?? null,
-        'categoriaTxt'=> $cat ? trim((string)$cat['tipo']) : null,
+        'categoriaTxt'=> $cat ? preg_replace('/\s+/', ' ', trim((string)$cat['tipo'])) : null,
         'premio'      => $premio,
         'isWinner'    => ((float)str_replace(',', '.', $premio)) > 0,
         'fuente'      => 'SELAE (oficial)',
@@ -148,8 +148,106 @@ function check_ticket(string $game, array $main, array $special, array $sorteo):
 }
 
 // ===========================================================================
+//  RESULTADOS OFICIALES (mapeos puros, testeables sin red)
+// ===========================================================================
+
+const NOMBRES = [
+    'euromillones' => 'Euromillones', 'primitiva' => 'La Primitiva',
+    'bonoloto' => 'Bonoloto', 'gordo' => 'El Gordo de la Primitiva', 'eurodreams' => 'EuroDreams',
+];
+const JUEGOS_DESTACADOS = ['euromillones', 'primitiva', 'eurodreams'];
+const JUEGOS_TICKER     = ['euromillones', 'primitiva', 'bonoloto', 'gordo', 'eurodreams'];
+
+function fmt_fecha(string $f): string {        // "2026-11-06 21:16:00" -> "06/11/2026"
+    $p = explode('-', substr($f, 0, 10));
+    return count($p) === 3 ? "{$p[2]}/{$p[1]}/{$p[0]}" : $f;
+}
+function fmt_fecha_corta(string $f): string {  // -> "06/11"
+    $p = explode('-', substr($f, 0, 10));
+    return count($p) === 3 ? "{$p[2]}/{$p[1]}" : $f;
+}
+
+/** Números especiales a mostrar (bolas doradas) según el juego. */
+function especiales_display(string $game, array $d): array {
+    if ($game === 'euromillones') return $d['estrellas'] ?? [];
+    if ($game === 'gordo')        return ($d['clave'] ?? null) !== null ? [$d['clave']] : [];
+    if ($game === 'eurodreams')   return ($d['sueno'] ?? null) !== null ? [$d['sueno']] : [];
+    return (($d['comp'] ?? null) !== null) ? [$d['comp']] : [];   // primitiva/bonoloto: complementario
+}
+
+/** Un sorteo de SELAE -> forma LotteryResult (pestaña Historial). */
+function map_result(string $game, array $s): array {
+    $d = parse_combinacion($game, (string)($s['combinacion'] ?? ''));
+    $tiers = [];
+    foreach (($s['escrutinio'] ?? []) as $c) {
+        $tiers[] = [
+            'category' => preg_replace('/\s+/', ' ', trim((string)($c['tipo'] ?? ''))),
+            'winners'  => (string)($c['ganadores'] ?? ''),
+            'prize'    => (string)($c['premio'] ?? ''),
+        ];
+    }
+    return [
+        'date'           => fmt_fecha((string)($s['fecha_sorteo'] ?? '')),
+        'jackpot'        => (string)($s['premio_bote'] ?? ''),
+        'mainNumbers'    => $d['main'] ?? [],
+        'specialNumbers' => especiales_display($game, $d),
+        'prizeTiers'     => $tiers,
+    ];
+}
+
+/** Un sorteo de SELAE -> forma FeaturedResult (banner Destacados). */
+function map_featured(string $game, array $s): array {
+    $d = parse_combinacion($game, (string)($s['combinacion'] ?? ''));
+    return [
+        'gameId'         => $game,
+        'gameName'       => NOMBRES[$game] ?? $game,
+        'date'           => fmt_fecha((string)($s['fecha_sorteo'] ?? '')),
+        'jackpot'        => (string)($s['premio_bote'] ?? ''),
+        'mainNumbers'    => $d['main'] ?? [],
+        'specialNumbers' => especiales_display($game, $d),
+    ];
+}
+
+/** Un sorteo de SELAE -> forma WeeklyTickerResult (ticker). */
+function map_ticker(string $game, array $s): array {
+    return [
+        'gameName' => NOMBRES[$game] ?? $game,
+        'numbers'  => trim((string)($s['combinacion'] ?? '')),
+        'date'     => fmt_fecha_corta((string)($s['fecha_sorteo'] ?? '')),
+    ];
+}
+
+/** Descarga de SELAE los sorteos de un juego en un rango de fechas (YYYYMMDD). */
+function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
+    $url = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id={$gameId}"
+         . "&celebrados=true&fechaInicioInclusiva={$fromYmd}&fechaFinInclusiva={$toYmd}";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 25,
+        CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LosPatios70/1.0)',
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($resp === false || $code < 200 || $code >= 300) return null;
+    $data = json_decode($resp, true);
+    return is_array($data) ? $data : null;
+}
+
+// ===========================================================================
 //  MODO TEST (CLI, sin red)
 // ===========================================================================
+if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'testresults') {
+    $game = $argv[2] ?? ''; $file = $argv[3] ?? '';
+    $arr = json_decode((string)file_get_contents($file), true);
+    $s = is_array($arr) ? ($arr[0] ?? []) : [];
+    echo "RESULT:   " . json_encode(map_result($game, $s), JSON_UNESCAPED_UNICODE) . "\n";
+    echo "FEATURED: " . json_encode(map_featured($game, $s), JSON_UNESCAPED_UNICODE) . "\n";
+    echo "TICKER:   " . json_encode(map_ticker($game, $s), JSON_UNESCAPED_UNICODE) . "\n";
+    exit;
+}
 if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'test') {
     $game = $argv[2] ?? ''; $file = $argv[3] ?? '';
     $main = []; $special = []; $inSpecial = false;
@@ -184,34 +282,66 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); ec
 
 $body = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($body) || empty($body['action'])) { http_response_code(400); echo json_encode(['error' => 'Petición inválida.']); exit; }
-if ((string)$body['action'] !== 'checkTicket') { http_response_code(400); echo json_encode(['error' => 'Acción desconocida.']); exit; }
-
+$action = (string)$body['action'];
 $p = (isset($body['payload']) && is_array($body['payload'])) ? $body['payload'] : [];
-$game = (string)($p['game'] ?? '');
-$date = (string)($p['date'] ?? '');
-$main = array_map('intval', (array)($p['main'] ?? []));
-$special = array_map('intval', (array)($p['special'] ?? []));
-$gameId = GAME_IDS[$game] ?? '';
-if ($gameId === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-    http_response_code(400); echo json_encode(['error' => 'Juego o fecha no válidos.']); exit;
+
+$hoy  = date('Ymd');
+$hace = date('Ymd', strtotime('-16 days'));   // rango para "último sorteo"
+
+// --- Comprobar boleto ---
+if ($action === 'checkTicket') {
+    $game = (string)($p['game'] ?? '');
+    $date = (string)($p['date'] ?? '');
+    $main = array_map('intval', (array)($p['main'] ?? []));
+    $special = array_map('intval', (array)($p['special'] ?? []));
+    $gameId = GAME_IDS[$game] ?? '';
+    if ($gameId === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        http_response_code(400); echo json_encode(['error' => 'Juego o fecha no válidos.']); exit;
+    }
+    $ymd  = str_replace('-', '', $date);
+    $data = fetch_selae($gameId, $ymd, $ymd);
+    if ($data === null) { http_response_code(502); echo json_encode(['error' => 'No se pudo obtener el sorteo oficial.']); exit; }
+    if (empty($data))   { echo json_encode(['pendiente' => true, 'error' => 'Aún no hay resultados para esa fecha.']); exit; }
+    echo json_encode(check_ticket($game, $main, $special, $data[0]), JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-$ymd = str_replace('-', '', $date);
-$url = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id={$gameId}&celebrados=true&fechaInicioInclusiva={$ymd}&fechaFinInclusiva={$ymd}";
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 25,
-    CURLOPT_HTTPHEADER     => ['Accept: application/json'],
-    CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LosPatios70/1.0)',
-]);
-$resp = curl_exec($ch);
-$code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-if ($resp === false || $code < 200 || $code >= 300) { http_response_code(502); echo json_encode(['error' => 'No se pudo obtener el sorteo oficial.']); exit; }
+// --- Historial de resultados (un juego) ---
+if ($action === 'getResults') {
+    $game = (string)($p['game'] ?? '');
+    $date = (string)($p['date'] ?? '');
+    $gameId = GAME_IDS[$game] ?? '';
+    if ($gameId === '') { http_response_code(400); echo json_encode(['error' => 'Juego no válido.']); exit; }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) { $from = $to = str_replace('-', '', $date); }
+    else { $from = $hace; $to = $hoy; }
+    $data = fetch_selae($gameId, $from, $to);
+    if ($data === null) { http_response_code(502); echo json_encode(['error' => 'No se pudieron obtener los resultados.']); exit; }
+    echo json_encode(array_map(fn($s) => map_result($game, $s), array_slice($data, 0, 3)), JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
-$data = json_decode($resp, true);
-if (!is_array($data) || empty($data)) { echo json_encode(['pendiente' => true, 'error' => 'Aún no hay resultados para esa fecha.']); exit; }
+// --- Destacados (Euromillones, Primitiva, EuroDreams) ---
+if ($action === 'getFeatured') {
+    $out = [];
+    foreach (JUEGOS_DESTACADOS as $g) {
+        $data = fetch_selae(GAME_IDS[$g], $hace, $hoy);
+        if (!empty($data)) $out[] = map_featured($g, $data[0]);
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
-echo json_encode(check_ticket($game, $main, $special, $data[0]), JSON_UNESCAPED_UNICODE);
+// --- Ticker (últimos resultados de varios juegos) ---
+if ($action === 'getTicker') {
+    $out = [];
+    foreach (JUEGOS_TICKER as $g) {
+        $data = fetch_selae(GAME_IDS[$g], $hace, $hoy);
+        if (!empty($data)) $out[] = map_ticker($g, $data[0]);
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+http_response_code(400);
+echo json_encode(['error' => 'Acción desconocida.']);
 exit;
