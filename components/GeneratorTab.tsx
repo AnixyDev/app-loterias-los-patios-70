@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LotteryGame, GeneratedNumbers, GenerationStrategy } from '../types';
 import NumberGenerator from './NumberGenerator';
 import SavedPlays from './SavedPlays';
@@ -8,11 +8,42 @@ interface GeneratorTabProps {
     games: LotteryGame[];
 }
 
+type Play = { game: LotteryGame } & GeneratedNumbers;
+
+// Las jugadas se guardan en el navegador del dispositivo (localStorage): no hay
+// cuenta ni servidor, así que son privadas de ese navegador y no se sincronizan
+// entre dispositivos. Si se borran los datos de navegación, se pierden.
+const STORAGE_KEY = 'jugadas-guardadas';
+const MAX_JUGADAS = 50;
+
+const cargarJugadas = (): Play[] => {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        // Validación defensiva: solo jugadas con la forma esperada.
+        return Array.isArray(data)
+            ? data.filter((p) => p && p.game && Array.isArray(p.main)).slice(0, MAX_JUGADAS)
+            : [];
+    } catch {
+        return [];
+    }
+};
+
 const GeneratorTab: React.FC<GeneratorTabProps> = ({ games }) => {
-    const [savedPlays, setSavedPlays] = useState<({ game: LotteryGame } & GeneratedNumbers)[]>([]);
+    const [savedPlays, setSavedPlays] = useState<Play[]>(cargarJugadas);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [lastGeneratedPlay, setLastGeneratedPlay] = useState<({ game: LotteryGame } & GeneratedNumbers) | null>(null);
+    const [lastGeneratedPlay, setLastGeneratedPlay] = useState<Play | null>(null);
+
+    // Persistir en el navegador cada vez que cambian las jugadas.
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPlays));
+        } catch {
+            /* modo incógnito o almacenamiento lleno: seguimos sin persistir */
+        }
+    }, [savedPlays]);
 
     const handleGenerate = async (
         game: LotteryGame,
@@ -26,7 +57,7 @@ const GeneratorTab: React.FC<GeneratorTabProps> = ({ games }) => {
         try {
             const generatedNumbers = await geminiService.generateNumbers(game, strategy, includeAddOn, inspirationText);
             const newPlay = { game, ...generatedNumbers };
-            setSavedPlays(prevPlays => [newPlay, ...prevPlays]);
+            setSavedPlays(prevPlays => [newPlay, ...prevPlays].slice(0, MAX_JUGADAS));
             setLastGeneratedPlay(newPlay);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Ocurrió un error desconocido.');
@@ -34,7 +65,12 @@ const GeneratorTab: React.FC<GeneratorTabProps> = ({ games }) => {
             setIsGenerating(false);
         }
     };
-    
+
+    const removePlay = (index: number) =>
+        setSavedPlays(prev => prev.filter((_, i) => i !== index));
+
+    const clearPlays = () => setSavedPlays([]);
+
     const renderGeneratedPlay = () => {
         if (!lastGeneratedPlay) return null;
 
@@ -70,8 +106,23 @@ const GeneratorTab: React.FC<GeneratorTabProps> = ({ games }) => {
                 {renderGeneratedPlay()}
             </div>
             <div>
-                 <h3 className="text-xl font-bold mb-4 text-brand-gold">Mis Jugadas Generadas</h3>
-                 <SavedPlays plays={savedPlays} />
+                <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-brand-gold">Mis Jugadas Generadas</h3>
+                    {savedPlays.length > 0 && (
+                        <button
+                            onClick={clearPlays}
+                            className="rounded-lg border border-white/20 px-3 py-1 text-sm text-gray-300 hover:border-red-500/60 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                        >
+                            Vaciar
+                        </button>
+                    )}
+                </div>
+                <SavedPlays plays={savedPlays} onRemove={removePlay} />
+                {savedPlays.length > 0 && (
+                    <p className="mt-2 text-xs text-gray-500">
+                        Se guardan solo en este navegador y dispositivo.
+                    </p>
+                )}
             </div>
         </div>
     );
