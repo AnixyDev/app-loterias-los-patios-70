@@ -1,8 +1,7 @@
 import {
     LotteryGame,
     GenerationStrategy,
-    GeneratedNumbers,
-    ChatMessage
+    GeneratedNumbers
 } from '../types';
 
 /**
@@ -77,9 +76,4 @@ export const generateNumbers = async (
         'generador de números'
     );
     return parseJson<GeneratedNumbers>(text, 'generador de números');
-};
-
-export const getChatResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
-    // El chat devuelve texto libre, no JSON.
-    return callProxy('chat', { history, newMessage }, 'asistente de chat');
 };
