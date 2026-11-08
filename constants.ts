@@ -79,44 +79,17 @@ export const LOTTERY_GAMES: LotteryGame[] = [
         displayType: 'ticket',
         urlSlug: 'loteria-nacional',
     },
-     {
-        id: 'quiniela',
-        name: 'La Quiniela',
-        numbersToPick: 15,
-        maxNumber: 3, // 1, X, 2
-        displayType: 'ticket',
-        urlSlug: 'la-quiniela'
-    },
-    {
-        id: 'quinigol',
-        name: 'Quinigol',
-        numbersToPick: 6, // 6 matches
-        maxNumber: 4, // 0, 1, 2, M
-        displayType: 'ticket',
-        urlSlug: 'quinigol'
-    },
-    {
-        id: 'lototurf',
-        name: 'Lototurf',
-        numbersToPick: 6,
-        maxNumber: 31,
-        specialNumbers: {
-            name: 'Caballo',
-            count: 1,
-            max: 12,
-        },
-        displayType: 'balls',
-        urlSlug: 'lototurf'
-    },
-    {
-        id: 'quintuple-plus',
-        name: 'Quintuple Plus',
-        numbersToPick: 6, // 5 winners + 1 second
-        maxNumber: 20, // Simplified number of horses
-        displayType: 'ticket',
-        urlSlug: 'quintuple-plus'
-    }
 ];
+
+/**
+ * Juegos para el GENERADOR de números: solo aquellos en los que eliges una
+ * combinación de números. Se excluye Lotería Nacional (no se elige número: se
+ * compra un décimo ya impreso), por lo que generar números para ella no tiene
+ * sentido.
+ */
+export const JUEGOS_GENERADOR: LotteryGame[] = LOTTERY_GAMES.filter(
+    (g) => g.id !== 'nacional',
+);
 
 // Fix: Export GAME_IMAGES to resolve the import error in FeaturedResultBanner.tsx.
 export const GAME_IMAGES: { [key: string]: string } = {
@@ -126,9 +99,5 @@ export const GAME_IMAGES: { [key: string]: string } = {
     bonoloto: 'https://www.loteriasmalaga70.com/images/juegos/bonoloto.jpg',
     gordo: 'https://www.loteriasmalaga70.com/images/juegos/gordo.jpg',
     nacional: 'https://www.loteriasmalaga70.com/images/juegos/loteria-nacional.jpg',
-    quiniela: 'https://www.loteriasmalaga70.com/images/juegos/quiniela.jpg',
-    quinigol: 'https://www.loteriasmalaga70.com/images/juegos/quinigol.jpg',
-    lototurf: 'https://www.loteriasmalaga70.com/images/juegos/lototurf.jpg',
-    'quintuple-plus': 'https://www.loteriasmalaga70.com/images/juegos/quintuple-plus.jpg',
     default: 'https://www.loteriasmalaga70.com/images/logo-malaga70.png'
 };
