@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Config con la clave de Gemini (NUNCA subir)
+api/config.php
+.env.local

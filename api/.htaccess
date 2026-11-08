@@ -1,0 +1,5 @@
+# Bloquea el acceso directo por web a los archivos de configuración.
+# (gemini-proxy.php sí es accesible; config.php nunca debe servirse.)
+<FilesMatch "^(config|config\.sample)\.php$">
+    Require all denied
+</FilesMatch>
