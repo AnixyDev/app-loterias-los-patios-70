@@ -8,6 +8,7 @@ import {
     ResultadoNacional,
 } from '../services/loteriaOficial';
 import { QrTicket } from '../services/qrTicket';
+import { formatPremio } from '../services/format';
 import QrScanner from './QrScanner';
 
 interface TicketCheckerProps {
@@ -168,7 +169,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                 <h3 className="mb-2 text-xl font-bold">
                     {r.isWinner ? '🎉 ¡Enhorabuena, tienes premio!' : 'Este décimo no tiene premio.'}
                 </h3>
-                {r.isWinner && <p className="mb-3 text-2xl font-bold text-brand-gold">Premio: {r.premio} €</p>}
+                {r.isWinner && <p className="mb-3 text-2xl font-bold text-brand-gold">Premio: {formatPremio(r.premio)}</p>}
 
                 <div className="mt-4 space-y-2 rounded-md bg-black/30 p-3 text-left text-sm">
                     <p><span className="font-semibold text-gray-300">Sorteo del:</span> {r.drawDate}</p>
@@ -181,7 +182,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                             <span className="font-semibold text-gray-300">Desglose:</span>
                             <ul className="mt-1 list-disc pl-5">
                                 {r.desglose.map((d, i) => (
-                                    <li key={i}><span className="text-green-400">{d.importe} €</span> — {d.concepto}</li>
+                                    <li key={i}><span className="text-green-400">{formatPremio(d.importe)}</span> — {d.concepto}</li>
                                 ))}
                             </ul>
                         </div>
@@ -209,7 +210,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                     {result.isWinner ? '🎉 ¡Enhorabuena, tienes premio!' : 'Este boleto no tiene premio.'}
                 </h3>
                 {result.categoriaTxt && <p className="mb-1 text-lg">Categoría: {result.categoriaTxt}</p>}
-                {result.isWinner && <p className="mb-3 text-2xl font-bold text-brand-gold">Premio: {result.premio} €</p>}
+                {result.isWinner && <p className="mb-3 text-2xl font-bold text-brand-gold">Premio: {formatPremio(result.premio)}</p>}
 
                 <div className="mt-4 space-y-2 rounded-md bg-black/30 p-3 text-left text-sm">
                     <p><span className="font-semibold text-gray-300">Sorteo del:</span> {result.drawDate}</p>
