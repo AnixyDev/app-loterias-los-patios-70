@@ -423,6 +423,10 @@ function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
     return $data;
 }
 
+// Si se incluye este archivo desde un test (define LOTERIA_OFICIAL_LIB antes de
+// requerirlo), cargamos solo las funciones y no ejecutamos los dispatchers.
+if (defined('LOTERIA_OFICIAL_LIB')) return;
+
 // ===========================================================================
 //  MODO DUMP (CLI, con red) — vuelca el JSON crudo de SELAE para un game_id.
 //  Útil para conseguir muestras de juegos nuevos (Lotería Nacional = LNAC).
