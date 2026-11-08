@@ -84,6 +84,71 @@ export const checkTicketOficial = async (
 };
 
 // ---------------------------------------------------------------------------
+//  Lotería Nacional (comprobación por número de décimo)
+// ---------------------------------------------------------------------------
+
+export interface PremioNacional {
+    concepto: string;   // "1er Premio", "Terminación 66 (2 cifras)", "Reintegro"...
+    importe: string;    // euros, p.ej. "30000"
+}
+
+export interface ResultadoNacional {
+    isWinner: boolean;
+    premio: string;                 // premio total en euros, p.ej. "30003"
+    categoriaTxt: string | null;    // categoría principal
+    numero: string;                 // número comprobado (5 cifras)
+    primerPremio: string | null;    // número agraciado con el 1er premio
+    desglose: PremioNacional[];     // detalle de lo que ha ganado
+    drawDate: string;               // fecha consultada (YYYY-MM-DD)
+    pendiente?: boolean;
+    error?: string;
+}
+
+/**
+ * Comprueba un décimo de Lotería Nacional contra el sorteo oficial de SELAE.
+ * El premio depende solo del número y la fecha (serie y fracción no cambian el
+ * importe en los sorteos ordinarios).
+ */
+export const checkDecimoNacional = async (
+    numero: string,
+    date: string
+): Promise<ResultadoNacional> => {
+    let res: Response;
+    try {
+        res = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'checkTicket', payload: { game: 'nacional', numero, date } }),
+        });
+    } catch {
+        throw new Error('Sin conexión con el servidor al comprobar el décimo.');
+    }
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Error del servidor al comprobar el décimo.');
+    }
+    if (data?.pendiente) {
+        return {
+            isWinner: false, premio: '0', categoriaTxt: null, numero, primerPremio: null,
+            desglose: [], drawDate: date, pendiente: true,
+            error: typeof data?.error === 'string' ? data.error : 'Aún no hay sorteo en esa fecha.',
+        };
+    }
+
+    return {
+        isWinner: !!data?.isWinner,
+        premio: String(data?.premio ?? '0'),
+        categoriaTxt: data?.categoriaTxt ?? null,
+        numero: String(data?.numero ?? numero),
+        primerPremio: data?.primerPremio ?? null,
+        desglose: Array.isArray(data?.desglose) ? data.desglose : [],
+        drawDate: date,
+    };
+};
+
+// ---------------------------------------------------------------------------
 //  Resultados oficiales (Historial, Destacados, Ticker)
 // ---------------------------------------------------------------------------
 

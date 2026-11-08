@@ -24,6 +24,10 @@ const GAME_IDS = [
     'eurodreams'   => 'EDMS',
 ];
 
+// Lotería Nacional va aparte: no se comprueba por combinación sino por número
+// de décimo, con una estructura de premios distinta (ver check_nacional).
+const GAME_ID_NACIONAL = 'LNAC';
+
 // ===========================================================================
 //  LÓGICA (pura, testeable sin red)
 // ===========================================================================
@@ -145,6 +149,123 @@ function check_ticket(string $game, array $main, array $special, array $sorteo):
 
     return resultado($game, $d, ['main' => $ac, 'complementario' => $matchC, 'reintegro' => $matchR],
                      ['main' => $nA], $cat);
+}
+
+// ===========================================================================
+//  LOTERÍA NACIONAL (comprobación por número de décimo)
+// ===========================================================================
+//
+// La Nacional no se juega con combinación: cada décimo lleva un NÚMERO de 5
+// cifras y gana según coincida con los premios del sorteo. Reglas aplicadas
+// (las que el escrutinio de SELAE nos da de forma inequívoca):
+//
+//   · Premios a las 5 cifras (número completo): 1º, 2º, 3º, 4º, 5º y, en los
+//     extraordinarios, la pedrea. Si el número coincide, gana ese premio. Se
+//     suman si el mismo número sale varias veces (pedrea).
+//   · Terminaciones (4, 3 y 2 cifras): se cobra la de MAYOR importe, no se
+//     acumulan entre sí, y solo si el número no ha ganado ya un premio a las
+//     5 cifras (que lo absorbe).
+//   · Reintegro (última cifra): siempre compatible, se suma.
+//
+// Importes: el JSON trae `prize` en CÉNTIMOS por décimo. Trabajamos en
+// céntimos y formateamos a euros al final.
+//
+// Nota: este resumen NO incluye centenas ni aproximaciones (SELAE no las da en
+// este endpoint), así que para números muy pegados a un premio mayor conviene
+// confirmar en la web oficial. La app lo advierte.
+
+/** Normaliza un número de décimo a 5 cifras (quita no-dígitos, rellena ceros). */
+function nacional_num(string $numero): string {
+    $n = preg_replace('/\D/', '', $numero);
+    return str_pad(substr($n, -5), 5, '0', STR_PAD_LEFT);
+}
+
+/** Formatea céntimos (int) a euros como string: 3000000 → "30000", 750 → "7,50". */
+function nacional_eur(int $centimos): string {
+    $s = number_format($centimos / 100, 2, ',', '');
+    return rtrim(rtrim($s, '0'), ',');   // quita decimales sobrantes
+}
+
+/** Etiqueta legible de un premio (decodifica entidades como "2&#x00ba;"). */
+function nacional_label(array $e): string {
+    $lit = $e['literalPremio']['es'] ?? null;
+    if (is_string($lit) && $lit !== '') {
+        return trim(html_entity_decode($lit, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+    return 'Premio a las 5 cifras';
+}
+
+/**
+ * Comprueba un décimo de Lotería Nacional contra un sorteo ya descargado.
+ * Devuelve premio total, categoría y desglose.
+ */
+function check_nacional(string $numeroRaw, array $s): array {
+    $numero = nacional_num($numeroRaw);
+    $centimos = 0;
+    $desglose = [];
+
+    // 1) Premios a las 5 cifras (número completo). Se suman todas las coincidencias.
+    $cinco = [];
+    foreach (['primerPremio', 'segundoPremio'] as $k) {
+        if (!empty($s[$k]['decimo'])) $cinco[] = $s[$k];
+    }
+    foreach (['tercerosPremios', 'cuartosPremios', 'quintosPremios', 'extraccionesDeCincoCifras'] as $k) {
+        foreach (($s[$k] ?? []) as $e) if (isset($e['decimo'])) $cinco[] = $e;
+    }
+    $gano5 = false;
+    foreach ($cinco as $e) {
+        if (str_pad((string)$e['decimo'], 5, '0', STR_PAD_LEFT) === $numero) {
+            $imp = (int)($e['prize'] ?? 0);
+            $centimos += $imp;
+            $desglose[] = ['concepto' => nacional_label($e), 'importe' => nacional_eur($imp)];
+            $gano5 = true;
+        }
+    }
+
+    // 2) Terminaciones (4, 3, 2 cifras): la de mayor importe, solo si no ganó 5 cifras.
+    if (!$gano5) {
+        $mejorTerm = null;
+        foreach ([4 => 'extraccionesDeCuatroCifras', 3 => 'extraccionesDeTresCifras', 2 => 'extraccionesDeDosCifras'] as $n => $k) {
+            $fin = substr($numero, -$n);
+            foreach (($s[$k] ?? []) as $e) {
+                if (str_pad((string)$e['decimo'], $n, '0', STR_PAD_LEFT) === $fin) {
+                    $imp = (int)($e['prize'] ?? 0);
+                    if ($mejorTerm === null || $imp > $mejorTerm['imp']) {
+                        $mejorTerm = ['imp' => $imp, 'concepto' => "Terminación $fin ($n cifras)"];
+                    }
+                }
+            }
+        }
+        if ($mejorTerm !== null) {
+            $centimos += $mejorTerm['imp'];
+            $desglose[] = ['concepto' => $mejorTerm['concepto'], 'importe' => nacional_eur($mejorTerm['imp'])];
+        }
+    }
+
+    // 3) Reintegro (última cifra): siempre compatible.
+    $fin1 = substr($numero, -1);
+    foreach (($s['reintegros'] ?? []) as $e) {
+        if ((string)$e['decimo'] === $fin1) {
+            $imp = (int)($e['prize'] ?? 0);
+            $centimos += $imp;
+            $desglose[] = ['concepto' => 'Reintegro', 'importe' => nacional_eur($imp)];
+            break;
+        }
+    }
+
+    $primer = !empty($s['primerPremio']['decimo'])
+        ? str_pad((string)$s['primerPremio']['decimo'], 5, '0', STR_PAD_LEFT) : null;
+
+    return [
+        'game'         => 'nacional',
+        'numero'       => $numero,
+        'isWinner'     => $centimos > 0,
+        'premio'       => nacional_eur($centimos),
+        'categoriaTxt' => $desglose[0]['concepto'] ?? null,
+        'desglose'     => $desglose,
+        'primerPremio' => $primer,
+        'fuente'       => 'SELAE (oficial)',
+    ];
 }
 
 // ===========================================================================
@@ -314,6 +435,15 @@ if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'testresults') {
     echo "TICKER:   " . json_encode(map_ticker($game, $s), JSON_UNESCAPED_UNICODE) . "\n";
     exit;
 }
+// Comprobar un décimo de Lotería Nacional (sin red):
+//   php loteria-oficial.php testnacional <file.json> <numero> [indiceSorteo=0]
+if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'testnacional') {
+    $file = $argv[2] ?? ''; $numero = $argv[3] ?? ''; $idx = (int)($argv[4] ?? 0);
+    $arr = json_decode((string)file_get_contents($file), true);
+    $s = is_array($arr) ? ($arr[$idx] ?? []) : [];
+    echo json_encode(check_nacional($numero, $s), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n";
+    exit;
+}
 if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'test') {
     $game = $argv[2] ?? ''; $file = $argv[3] ?? '';
     $main = []; $special = []; $inSpecial = false;
@@ -358,6 +488,21 @@ $hace = date('Ymd', strtotime('-16 days'));   // rango para "último sorteo"
 if ($action === 'checkTicket') {
     $game = (string)($p['game'] ?? '');
     $date = (string)($p['date'] ?? '');
+
+    // --- Lotería Nacional: se comprueba por número de décimo (ruta propia) ---
+    if ($game === 'nacional') {
+        $numero = preg_replace('/\D/', '', (string)($p['numero'] ?? ''));
+        if ($numero === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            http_response_code(400); echo json_encode(['error' => 'Número o fecha no válidos.']); exit;
+        }
+        $ymd  = str_replace('-', '', $date);
+        $data = fetch_selae(GAME_ID_NACIONAL, $ymd, $ymd);
+        if ($data === null) { http_response_code(502); echo json_encode(['error' => 'No se pudo obtener el sorteo oficial.']); exit; }
+        if (empty($data))   { echo json_encode(['pendiente' => true, 'error' => 'Aún no hay sorteo de Lotería Nacional en esa fecha.']); exit; }
+        echo json_encode(check_nacional($numero, $data[0]), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     $main = array_map('intval', (array)($p['main'] ?? []));
     $special = array_map('intval', (array)($p['special'] ?? []));
     $gameId = GAME_IDS[$game] ?? '';

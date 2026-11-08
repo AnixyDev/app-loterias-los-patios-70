@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LotteryGame } from '../types';
 import {
     checkTicketOficial,
+    checkDecimoNacional,
     esJuegoOficial,
     ResultadoOficial,
-    JUEGOS_OFICIALES,
+    ResultadoNacional,
 } from '../services/loteriaOficial';
 import { QrTicket } from '../services/qrTicket';
 import QrScanner from './QrScanner';
@@ -13,62 +14,38 @@ interface TicketCheckerProps {
     games: LotteryGame[];
 }
 
-// Nombres legibles de juegos que el QR reconoce pero el comprobador aún no maneja.
-const NOMBRE_JUEGO: Record<string, string> = {
-    nacional: 'Lotería Nacional',
-    quiniela: 'La Quiniela',
-};
-
-const fechaBonita = (iso: string | null): string => {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('-');
-    return d && m && y ? `${d}/${m}/${y}` : iso;
-};
-
-/**
- * Mensaje para cuando el QR se lee bien pero es de un juego que todavía no se
- * comprueba aquí. Para Lotería Nacional mostramos los datos del décimo que SÍ
- * hemos leído (número, serie, fracción, sorteo), para que quede claro que el
- * lector funciona y el usuario pueda comprobarlo en la web oficial.
- */
-const mensajeJuegoNoSoportado = (ticket: QrTicket): string => {
-    if (ticket.game === 'nacional') {
-        const datos = [
-            ticket.numero ? `número ${ticket.numero}` : null,
-            ticket.serie ? `serie ${ticket.serie}` : null,
-            ticket.fraccion ? `fracción ${ticket.fraccion}` : null,
-            ticket.fecha ? `sorteo del ${fechaBonita(ticket.fecha)}` : null,
-        ].filter(Boolean).join(', ');
-        return `He leído un décimo de Lotería Nacional${datos ? ` (${datos})` : ''}. `
-            + 'La comprobación de Lotería Nacional todavía no está disponible aquí; '
-            + 'puedes comprobarlo en la web oficial de SELAE.';
-    }
-    const nombre = ticket.game ? NOMBRE_JUEGO[ticket.game] : null;
-    return `He leído un resguardo${nombre ? ` de ${nombre}` : ''} de un juego que todavía `
-        + 'no se comprueba aquí. Puedes comprobarlo en la web oficial de SELAE.';
-};
+// Nombres legibles de juegos que el QR reconoce pero el comprobador no maneja.
+const NOMBRE_JUEGO: Record<string, string> = { quiniela: 'La Quiniela' };
 
 const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
-    // Solo los juegos que el comprobador oficial soporta hoy.
-    const juegos = games.filter((g) => esJuegoOficial(g.id));
+    // Juegos comprobables: los 5 de combinación + Lotería Nacional (por número).
+    const nacionalGame = games.find((g) => g.id === 'nacional');
+    const juegos = [
+        ...games.filter((g) => esJuegoOficial(g.id)),
+        ...(nacionalGame ? [nacionalGame] : []),
+    ];
 
     const [selectedGameId, setSelectedGameId] = useState<string>(juegos[0]?.id || '');
     const [mainNumbers, setMainNumbers] = useState<string[]>([]);
     const [specialNumbers, setSpecialNumbers] = useState<string[]>([]);
+    const [numeroDecimo, setNumeroDecimo] = useState<string>(''); // Lotería Nacional
     const [drawDate, setDrawDate] = useState<string>('');
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<ResultadoOficial | null>(null);
+    const [resultadoNacional, setResultadoNacional] = useState<ResultadoNacional | null>(null);
     const [showScanner, setShowScanner] = useState(false);
 
     const selectedGame = juegos.find((g) => g.id === selectedGameId);
+    const esNacional = selectedGameId === 'nacional';
 
     useEffect(() => {
         if (selectedGame) {
             setMainNumbers(Array(selectedGame.numbersToPick).fill(''));
             setSpecialNumbers(Array(selectedGame.specialNumbers?.count || 0).fill(''));
             setResult(null);
+            setResultadoNacional(null);
             setError(null);
         }
     }, [selectedGameId, selectedGame]);
@@ -80,12 +57,13 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
         const n = [...specialNumbers]; n[i] = v; setSpecialNumbers(n);
     };
 
+    // --- Comprobar boleto de los juegos de combinación ---
     const comprobar = useCallback(async (game: LotteryGame, main: number[], special: number[], date: string) => {
         if (!date) { setError('Indica la fecha del sorteo.'); return; }
         if (main.length !== game.numbersToPick) {
             setError(`Introduce ${game.numbersToPick} números principales.`); return;
         }
-        setIsLoading(true); setError(null); setResult(null);
+        setIsLoading(true); setError(null); setResult(null); setResultadoNacional(null);
         try {
             const r = await checkTicketOficial(game.id, main, special, date);
             setResult(r);
@@ -97,8 +75,28 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
         }
     }, []);
 
+    // --- Comprobar décimo de Lotería Nacional ---
+    const comprobarNacional = useCallback(async (numeroRaw: string, date: string) => {
+        const numero = (numeroRaw || '').replace(/\D/g, '');
+        if (!date) { setError('Indica la fecha del sorteo.'); return; }
+        if (numero.length === 0 || numero.length > 5) {
+            setError('Introduce el número del décimo (hasta 5 cifras).'); return;
+        }
+        setIsLoading(true); setError(null); setResult(null); setResultadoNacional(null);
+        try {
+            const r = await checkDecimoNacional(numero, date);
+            setResultadoNacional(r);
+            if (r.error) setError(r.error);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Error al comprobar el décimo.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const handleCheckClick = () => {
         if (!selectedGame) return;
+        if (esNacional) { comprobarNacional(numeroDecimo, drawDate); return; }
         const main = mainNumbers.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n));
         const special = specialNumbers.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n));
         comprobar(selectedGame, main, special, drawDate);
@@ -107,8 +105,23 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
     // --- Al leer un QR de resguardo: rellenar y comprobar automáticamente ---
     const handleQrDetected = (ticket: QrTicket) => {
         setShowScanner(false);
+
+        // Lotería Nacional: comprobación por número de décimo.
+        if (ticket.game === 'nacional') {
+            if (!nacionalGame) { setError('Lotería Nacional no está disponible.'); return; }
+            setSelectedGameId('nacional');
+            if (ticket.numero) setNumeroDecimo(ticket.numero);
+            if (ticket.fecha) setDrawDate(ticket.fecha);
+            if (!ticket.numero) { setError('No se pudo leer el número del décimo en el QR.'); return; }
+            if (!ticket.fecha) { setError('No se pudo leer la fecha del sorteo. Indícala y pulsa Comprobar.'); return; }
+            comprobarNacional(ticket.numero, ticket.fecha);
+            return;
+        }
+
         if (!ticket.game || !esJuegoOficial(ticket.game)) {
-            setError(mensajeJuegoNoSoportado(ticket));
+            const nombre = ticket.game ? NOMBRE_JUEGO[ticket.game] : null;
+            setError(`He leído un resguardo${nombre ? ` de ${nombre}` : ''} de un juego que todavía `
+                + 'no se comprueba aquí. Puedes comprobarlo en la web oficial de SELAE.');
             return;
         }
         const game = juegos.find((g) => g.id === ticket.game);
@@ -132,18 +145,60 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
         comprobar(game, main, special, ticket.fecha);
     };
 
-    const renderResult = () => {
-        if (isLoading) {
-            return (
-                <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-brand-gold/50 bg-gray-800/50 p-6">
-                    <svg className="mb-3 h-8 w-8 animate-spin text-brand-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <p className="text-lg font-semibold text-brand-gold">Comprobando en resultados oficiales…</p>
+    const spinner = (
+        <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-brand-gold/50 bg-gray-800/50 p-6">
+            <svg className="mb-3 h-8 w-8 animate-spin text-brand-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <p className="text-lg font-semibold text-brand-gold">Comprobando en resultados oficiales…</p>
+        </div>
+    );
+
+    // --- Resultado de Lotería Nacional ---
+    const renderNacional = () => {
+        if (isLoading) return spinner;
+        if (error && !resultadoNacional) return <p className="mt-4 text-center text-sm text-red-400">{error}</p>;
+        if (!resultadoNacional) return null;
+        if (resultadoNacional.pendiente) return <p className="mt-4 text-center text-sm text-yellow-300">{resultadoNacional.error}</p>;
+
+        const r = resultadoNacional;
+        return (
+            <div className={`animate-fade-in-up mt-6 rounded-lg border p-4 text-center ${r.isWinner ? 'border-green-500/50 bg-green-900/30' : 'border-red-500/50 bg-red-900/30'}`}>
+                <h3 className="mb-2 text-xl font-bold">
+                    {r.isWinner ? '🎉 ¡Enhorabuena, tienes premio!' : 'Este décimo no tiene premio.'}
+                </h3>
+                {r.isWinner && <p className="mb-3 text-2xl font-bold text-brand-gold">Premio: {r.premio} €</p>}
+
+                <div className="mt-4 space-y-2 rounded-md bg-black/30 p-3 text-left text-sm">
+                    <p><span className="font-semibold text-gray-300">Sorteo del:</span> {r.drawDate}</p>
+                    <p><span className="font-semibold text-gray-300">Número comprobado:</span> {r.numero}</p>
+                    {r.primerPremio && (
+                        <p><span className="font-semibold text-gray-300">1er premio del sorteo:</span> {r.primerPremio}</p>
+                    )}
+                    {r.isWinner && r.desglose.length > 0 && (
+                        <div>
+                            <span className="font-semibold text-gray-300">Desglose:</span>
+                            <ul className="mt-1 list-disc pl-5">
+                                {r.desglose.map((d, i) => (
+                                    <li key={i}><span className="text-green-400">{d.importe} €</span> — {d.concepto}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    <p className="pt-1 text-xs text-gray-500">Fuente: resultados oficiales de SELAE.</p>
+                    <p className="text-xs text-gray-500">
+                        Nota: no se incluyen centenas ni aproximaciones a los premios mayores. Si tu número está muy
+                        cerca del 1º, 2º o 3er premio, confírmalo en la web oficial de SELAE.
+                    </p>
                 </div>
-            );
-        }
+            </div>
+        );
+    };
+
+    // --- Resultado de los juegos de combinación ---
+    const renderResult = () => {
+        if (isLoading) return spinner;
         if (error && !result) return <p className="mt-4 text-center text-sm text-red-400">{error}</p>;
         if (!result) return null;
         if (result.pendiente) return <p className="mt-4 text-center text-sm text-yellow-300">{result.error}</p>;
@@ -186,7 +241,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
             {showScanner && <QrScanner onDetect={handleQrDetected} onClose={() => setShowScanner(false)} />}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-gray-400">Comprueba tu boleto con los resultados oficiales de SELAE.</p>
+                <p className="text-sm text-gray-400">Comprueba tu boleto o décimo con los resultados oficiales de SELAE.</p>
                 <button
                     onClick={() => { setError(null); setShowScanner(true); }}
                     className="flex items-center justify-center gap-2 rounded-lg border border-brand-gold/60 px-4 py-2 font-semibold text-brand-gold hover:bg-brand-gold/10"
@@ -215,7 +270,29 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                 />
             </div>
 
-            {selectedGame && (
+            {/* --- Lotería Nacional: un único número de décimo --- */}
+            {esNacional && (
+                <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-300">
+                        Número del décimo (hasta 5 cifras)
+                    </label>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={5}
+                        value={numeroDecimo}
+                        onChange={(e) => setNumeroDecimo(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                        placeholder="Ej.: 06983"
+                        className="w-40 rounded-lg border border-brand-gold/50 bg-black p-3 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-gold"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                        En Lotería Nacional el premio depende del número; la serie y la fracción no cambian el importe.
+                    </p>
+                </div>
+            )}
+
+            {/* --- Juegos de combinación: números principales --- */}
+            {!esNacional && selectedGame && (
                 <div>
                     <label className="mb-2 block text-sm font-medium text-gray-300">
                         Números principales ({selectedGame.numbersToPick})
@@ -230,7 +307,7 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                 </div>
             )}
 
-            {selectedGame?.specialNumbers && (
+            {!esNacional && selectedGame?.specialNumbers && (
                 <div>
                     <label className="mb-2 block text-sm font-medium text-gray-300">
                         {selectedGame.specialNumbers.name} ({selectedGame.specialNumbers.count})
@@ -251,11 +328,11 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                     disabled={isLoading}
                     className="w-full rounded-lg bg-brand-gold px-8 py-3 font-bold text-black transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-gray-600 sm:w-auto"
                 >
-                    {isLoading ? 'Comprobando…' : 'Comprobar Boleto'}
+                    {isLoading ? 'Comprobando…' : (esNacional ? 'Comprobar décimo' : 'Comprobar Boleto')}
                 </button>
             </div>
 
-            {renderResult()}
+            {esNacional ? renderNacional() : renderResult()}
         </div>
     );
 };
