@@ -128,12 +128,14 @@ const TicketChecker: React.FC<TicketCheckerProps> = ({ games }) => {
                         {result.winningMain.join(', ')}
                         {result.winningSpecial.length > 0 ? ` | ${result.winningSpecial.join(', ')}` : ''}
                     </p>
-                    {result.matchedMain.length > 0 && (
-                        <p>
-                            <span className="font-semibold text-gray-300">Tus aciertos:</span>{' '}
-                            <span className="font-bold text-green-400">{result.matchedMain.join(', ')}</span>
-                        </p>
-                    )}
+                    <p>
+                        <span className="font-semibold text-gray-300">
+                            Números acertados ({result.matchedMain.length}):
+                        </span>{' '}
+                        {result.matchedMain.length > 0
+                            ? <span className="font-bold text-green-400">{result.matchedMain.join(', ')}</span>
+                            : <span className="text-gray-400">ninguno</span>}
+                    </p>
                     <p className="pt-1 text-xs text-gray-500">Fuente: resultados oficiales de SELAE.</p>
                 </div>
             </div>
