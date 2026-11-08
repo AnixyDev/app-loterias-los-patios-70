@@ -105,7 +105,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col gap-8">
                         <div className="bg-black/50 border border-brand-gold/20 rounded-2xl shadow-2xl shadow-black/30 backdrop-blur-sm p-4 sm:p-6 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-brand-gold/10">
                             <div className="mb-4 border-b border-brand-gold/30">
-                                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                                <nav className="-mb-px flex space-x-6" role="tablist" aria-label="Secciones">
                                     <TabButton title="Historial" isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
                                     <TabButton title="Comprobador" isActive={activeTab === 'checker'} onClick={() => setActiveTab('checker')} />
                                     <TabButton title="Generador" isActive={activeTab === 'generator'} onClick={() => setActiveTab('generator')} />
@@ -142,11 +142,13 @@ const App: React.FC = () => {
 const TabButton: React.FC<{ title: string, isActive: boolean, onClick: () => void }> = ({ title, isActive, onClick }) => (
     <button
         onClick={onClick}
+        role="tab"
+        aria-selected={isActive}
         className={`${
             isActive
                 ? 'border-brand-gold text-brand-gold'
                 : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
-        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base sm:text-lg transition-colors duration-200 focus:outline-none`}
+        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base sm:text-lg transition-colors duration-200 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold`}
     >
         {title}
     </button>

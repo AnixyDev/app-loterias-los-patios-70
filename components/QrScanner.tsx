@@ -17,8 +17,17 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const cancelarRef = useRef<HTMLButtonElement>(null);
     const [error, setError] = useState<string | null>(null);
     const [aviso, setAviso] = useState<string | null>(null);
+
+    // Cerrar con Escape y llevar el foco al botón Cancelar al abrir.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        cancelarRef.current?.focus();
+        return () => document.removeEventListener('keydown', onKey);
+    }, [onClose]);
 
     useEffect(() => {
         let cancelado = false;
@@ -82,18 +91,24 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     }, [onDetect]);
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4">
+        <div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Escanear el código QR del resguardo"
+        >
             <div className="relative w-full max-w-sm">
-                <video ref={videoRef} className="w-full rounded-lg border-2 border-brand-gold" muted playsInline />
+                <video ref={videoRef} className="w-full rounded-lg border-2 border-brand-gold" muted playsInline aria-label="Vista de la cámara" />
                 <canvas ref={canvasRef} className="hidden" />
-                <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-brand-gold/70" />
+                <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-brand-gold/70" aria-hidden="true" />
             </div>
-            <p className="mt-4 max-w-sm text-center text-sm text-gray-200">
+            <p className="mt-4 max-w-sm text-center text-sm text-gray-200" role="status" aria-live="polite">
                 {error || aviso || 'Enfoca el código QR del resguardo'}
             </p>
             <button
+                ref={cancelarRef}
                 onClick={onClose}
-                className="mt-4 rounded-lg bg-brand-gold px-6 py-2 font-bold text-black hover:opacity-90"
+                className="mt-4 rounded-lg bg-brand-gold px-6 py-2 font-bold text-black hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
                 Cancelar
             </button>
