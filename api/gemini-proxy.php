@@ -235,43 +235,6 @@ function build_request(string $action, array $p): array {
             ], 'required' => ['main']];
             return [$prompt, $schema];
 
-        case 'checkTicket':
-            $game = is_array($p['game'] ?? null) ? $p['game'] : [];
-            $name = (string) ($game['name'] ?? '');
-            if ($name === '') return [null, null];
-            $numbers = is_array($p['numbers'] ?? null) ? $p['numbers'] : [];
-            $date    = (string) ($p['date'] ?? '');
-            $main    = isset($numbers['main']) && is_array($numbers['main']) ? implode(', ', $numbers['main']) : '';
-
-            $userNumbers = "Main numbers: {$main}";
-            if (!empty($numbers['special']) && !empty($game['specialNumbers'])) {
-                $userNumbers .= ", " . (string) ($game['specialNumbers']['name'] ?? 'special')
-                    . ": " . implode(', ', (array) $numbers['special']);
-            }
-            if (isset($numbers['addOn']) && $numbers['addOn'] !== null && !empty($game['addOn'])) {
-                $userNumbers .= ", " . (string) ($game['addOn']['name'] ?? 'add-on') . ": " . (string) $numbers['addOn'];
-            }
-            $dateQuery = $date !== '' ? "for the draw date {$date}" : 'for the latest available draw';
-            $prompt = "Check the following lottery ticket for the Spanish game \"{$name}\" {$dateQuery}. "
-                . "User's ticket: {$userNumbers}. First, find the official winning numbers for that draw. Then, compare "
-                . "the user's ticket to the winning numbers. Determine if the user has won, calculate the prize amount "
-                . "based on the prize tiers for that draw, and list which numbers they matched. Provide a clear, brief "
-                . "message summarizing the result. If the results for that date are not out yet, state that clearly in "
-                . "the message. Return the result in the specified JSON format.";
-            $numObj = ['type' => 'OBJECT', 'properties' => [
-                'main'    => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                'special' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-            ], 'required' => ['main']];
-            $schema = ['type' => 'OBJECT', 'properties' => [
-                'isWinner'       => ['type' => 'BOOLEAN'],
-                'prizeAmount'    => ['type' => 'STRING'],
-                'winningNumbers' => $numObj,
-                'matchedNumbers' => $numObj,
-                'message'        => ['type' => 'STRING'],
-                'drawDate'       => ['type' => 'STRING'],
-            ], 'required' => ['isWinner', 'prizeAmount', 'winningNumbers', 'matchedNumbers', 'message']];
-            return [$prompt, $schema];
-
         case 'chat':
             $newMessage = (string) ($p['newMessage'] ?? '');
             $history    = isset($p['history']) ? $p['history'] : [];

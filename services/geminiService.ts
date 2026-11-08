@@ -5,7 +5,6 @@ import {
     WeeklyTickerResult,
     GenerationStrategy,
     GeneratedNumbers,
-    CheckResult,
     ChatMessage
 } from '../types';
 
@@ -96,15 +95,6 @@ export const generateNumbers = async (
         'generador de números'
     );
     return parseJson<GeneratedNumbers>(text, 'generador de números');
-};
-
-export const checkTicket = async (
-    game: LotteryGame,
-    numbers: { main: number[]; special?: number[]; addOn?: number },
-    date: string
-): Promise<CheckResult> => {
-    const text = await callProxy('checkTicket', { game, numbers, date }, 'comprobador de boletos');
-    return parseJson<CheckResult>(text, 'comprobador de boletos');
 };
 
 export const getChatResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
