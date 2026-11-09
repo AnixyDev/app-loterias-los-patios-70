@@ -94,10 +94,12 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="bg-brand-black text-white min-h-screen font-sans">
+        <div className="relative bg-brand-black text-white min-h-screen font-sans overflow-x-hidden">
+            {/* Resplandor dorado sutil de fondo (profundidad) */}
+            <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(234,179,8,0.10),transparent_70%)]" />
             <Header />
-            <main className="container mx-auto p-2 sm:p-4 md:p-6 lg:p-8 space-y-6 sm:space-y-8">
-                
+            <main className="relative container mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 space-y-6 sm:space-y-8">
+
                 <FeaturedResultBanner results={featuredResults} isLoading={isFeaturedLoading} error={featuredError} onRetry={fetchInitialData} />
                 
                 <WeeklyResultsTicker results={weeklyTickerResults} isLoading={isTickerLoading} error={tickerError} onRetry={fetchInitialData} />
@@ -106,9 +108,9 @@ const App: React.FC = () => {
                     
                     {/* Main Tools Section */}
                     <div className="flex flex-col gap-8">
-                        <div className="bg-black/50 border border-brand-gold/20 rounded-2xl shadow-2xl shadow-black/30 backdrop-blur-sm p-4 sm:p-6 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-brand-gold/10">
-                            <div className="mb-4 border-b border-brand-gold/30">
-                                <nav className="-mb-px flex space-x-6" role="tablist" aria-label="Secciones">
+                        <div className="bg-black/50 border border-brand-gold/20 rounded-3xl shadow-2xl shadow-black/30 backdrop-blur-sm p-5 sm:p-7 transition-all duration-300 hover:border-brand-gold/30 hover:shadow-brand-gold/10">
+                            <div className="mb-6 flex justify-center sm:justify-start">
+                                <nav className="inline-flex w-full sm:w-auto gap-1 rounded-full border border-brand-gold/20 bg-black/40 p-1" role="tablist" aria-label="Secciones">
                                     <TabButton title="Historial" isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
                                     <TabButton title="Comprobador" isActive={activeTab === 'checker'} onClick={() => setActiveTab('checker')} />
                                     <TabButton title="Generador" isActive={activeTab === 'generator'} onClick={() => setActiveTab('generator')} />
@@ -149,9 +151,9 @@ const TabButton: React.FC<{ title: string, isActive: boolean, onClick: () => voi
         aria-selected={isActive}
         className={`${
             isActive
-                ? 'border-brand-gold text-brand-gold'
-                : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
-        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base sm:text-lg transition-colors duration-200 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold`}
+                ? 'bg-brand-gold text-black shadow-sm shadow-brand-gold/30'
+                : 'text-gray-300 hover:text-white hover:bg-white/5'
+        } flex-1 sm:flex-none whitespace-nowrap rounded-full px-4 sm:px-5 py-2 text-sm sm:text-base font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold`}
     >
         {title}
     </button>
