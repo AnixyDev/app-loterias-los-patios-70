@@ -9,6 +9,20 @@ const PROXY_URL =
     (import.meta.env.VITE_OFICIAL_PROXY_URL as string | undefined) ||
     '/api/loteria-oficial.php';
 
+// Si SELAE (o el proxy) no responde, no dejamos el spinner colgado para siempre.
+const TIMEOUT_MS = 15000;
+
+/** fetch con tiempo límite; aborta la petición si tarda demasiado. */
+const fetchConTimeout = async (url: string, options: RequestInit): Promise<Response> => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(id);
+    }
+};
+
 /** Juegos que el comprobador oficial soporta hoy. */
 export const JUEGOS_OFICIALES = ['euromillones', 'primitiva', 'bonoloto', 'gordo', 'eurodreams'] as const;
 export type JuegoOficial = (typeof JUEGOS_OFICIALES)[number];
@@ -43,7 +57,7 @@ export const checkTicketOficial = async (
 ): Promise<ResultadoOficial> => {
     let res: Response;
     try {
-        res = await fetch(PROXY_URL, {
+        res = await fetchConTimeout(PROXY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'checkTicket', payload: { game, main, special, date } }),
@@ -115,7 +129,7 @@ export const checkDecimoNacional = async (
 ): Promise<ResultadoNacional> => {
     let res: Response;
     try {
-        res = await fetch(PROXY_URL, {
+        res = await fetchConTimeout(PROXY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'checkTicket', payload: { game: 'nacional', numero, date } }),
@@ -156,7 +170,7 @@ export const checkDecimoNacional = async (
 const postOficial = async (action: string, payload: unknown, contexto: string): Promise<any> => {
     let res: Response;
     try {
-        res = await fetch(PROXY_URL, {
+        res = await fetchConTimeout(PROXY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, payload }),
