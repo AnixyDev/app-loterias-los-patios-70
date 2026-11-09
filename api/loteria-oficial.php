@@ -500,6 +500,60 @@ header('Access-Control-Allow-Headers: Content-Type');
 header('X-Content-Type-Options: nosniff');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 header('Content-Type: application/json; charset=utf-8');
+
+// -------- Diagnóstico (GET ?diag=1) --------
+// Comprueba cURL y la conexión real con SELAE desde este servidor, para depurar
+// el despliegue. No expone datos sensibles.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['diag'])) {
+    $info = [
+        'php'              => PHP_VERSION,
+        'curl_cargado'     => extension_loaded('curl'),
+        'allow_url_fopen'  => (bool) ini_get('allow_url_fopen'),
+        'cache_dir'        => cache_dir(),
+        'cache_escribible' => is_writable(cache_dir()),
+    ];
+    if (!extension_loaded('curl')) {
+        $info['selae'] = 'cURL NO está disponible: el hosting no puede llamar a SELAE.';
+        echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    $from = date('Ymd', strtotime('-16 days'));
+    $to   = date('Ymd');
+    $jar  = selae_cookiejar();
+    $url  = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id=EMIL"
+          . "&celebrados=true&fechaInicioInclusiva={$from}&fechaFinInclusiva={$to}";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 25,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_ENCODING       => '',
+        CURLOPT_USERAGENT      => SELAE_UA,
+        CURLOPT_COOKIEJAR      => $jar,
+        CURLOPT_COOKIEFILE     => $jar,
+        CURLOPT_HTTPHEADER     => [
+            'Accept: application/json, text/plain, */*',
+            'Accept-Language: es-ES,es;q=0.9',
+            'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
+            'X-Requested-With: XMLHttpRequest',
+            'Origin: https://www.loteriasyapuestas.es',
+            'Connection: keep-alive',
+        ],
+    ]);
+    $resp = curl_exec($ch);
+    $info['selae'] = [
+        'http_code'  => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+        'curl_errno' => curl_errno($ch),
+        'curl_error' => curl_error($ch),
+        'bytes'      => $resp === false ? 0 : strlen((string)$resp),
+        'es_json'    => $resp !== false && is_array(json_decode((string)$resp, true)),
+        'muestra'    => $resp === false ? null : mb_substr((string)$resp, 0, 300),
+    ];
+    curl_close($ch);
+    echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Método no permitido.']); exit; }
 
 $body = json_decode((string)file_get_contents('php://input'), true);
