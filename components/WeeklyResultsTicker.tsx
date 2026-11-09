@@ -48,7 +48,7 @@ const WeeklyResultsTicker: React.FC<WeeklyResultsTickerProps> = ({ results, isLo
     );
 
     return (
-        <div className="bg-black/50 border-y border-brand-gold/30 py-3 group overflow-hidden whitespace-nowrap">
+        <div className="bg-black/50 border-y border-brand-gold/30 py-3 group overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
             {isLoading && <SkeletonLoader />}
             {error && !isLoading && <ErrorDisplay />}
             {results.length > 0 && !isLoading && <TickerContent />}
