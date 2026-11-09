@@ -1,50 +1,7 @@
 import React from 'react';
 import { FeaturedResult } from '../types';
 import { GAME_IMAGES } from '../constants';
-
-const formatCurrency = (value: string | number | undefined | null): string => {
-    if (value === null || value === undefined) return '';
-
-    const valueStr = String(value);
-    
-    // If the string does not contain any digits, it's likely a status message like "Sin Bote".
-    if (!/\d/.test(valueStr)) {
-        return valueStr;
-    }
-
-    // Prepare the string for parsing:
-    // 1. Remove currency symbols (€, $, etc.) and any whitespace.
-    // 2. In Spanish locale, '.' is a thousands separator, so remove it.
-    // 3. In Spanish locale, ',' is the decimal separator, so replace it with a '.' for parseFloat.
-    const numberString = valueStr
-        .replace(/[€$]/g, '')
-        .trim()
-        .replace(/\./g, '') 
-        .replace(',', '.');
-        
-    const number = parseFloat(numberString);
-    
-    // If parsing fails, return the original string to avoid showing "NaN".
-    if (isNaN(number)) {
-        return valueStr;
-    }
-    
-    const options: Intl.NumberFormatOptions = {
-        style: 'currency',
-        currency: 'EUR',
-    };
-
-    // For large integer values, don't show decimal places. For smaller prize values, do.
-    if (number % 1 === 0 && number >= 1000) {
-        options.minimumFractionDigits = 0;
-        options.maximumFractionDigits = 0;
-    } else {
-        options.minimumFractionDigits = 2;
-        options.maximumFractionDigits = 2;
-    }
-
-    return new Intl.NumberFormat('es-ES', options).format(number);
-};
+import { formatPremio as formatCurrency } from '../services/format';
 
 interface FeaturedResultBannerProps {
     results: FeaturedResult[];
@@ -70,7 +27,7 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
 
     const ResultCard: React.FC<{ result: FeaturedResult }> = ({ result }) => {
         const imageUrl = GAME_IMAGES[result.gameId] || GAME_IMAGES['default'];
-        
+
         return (
             <div className="relative bg-black/50 border border-brand-gold/20 rounded-2xl p-4 overflow-hidden flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6 flex flex-col justify-between transition-all duration-300 hover:border-brand-gold/40 hover:scale-105 snap-start">
                 <div
