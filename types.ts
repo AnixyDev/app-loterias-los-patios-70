@@ -51,22 +51,6 @@ export interface WeeklyTickerResult {
     date: string;
 }
 
-export enum GenerationStrategy {
-    RANDOM = 'Aleatorio',
-    DREAM = 'Inspirado en un sueño o frase',
-    HOT_COLD = 'Números calientes y fríos (basado en estadísticas)',
-    ASTROLOGY = 'Astrológico (basado en tu signo)',
-}
-
-export interface GeneratedNumbers {
-    main: number[];
-    special?: number[];
-    addOn?: {
-        name: string;
-        numbers: number[];
-    };
-}
-
 export interface CheckResult {
     isWinner: boolean;
     prizeAmount: string; // Keep as string for "Pendiente de Escrutinio" etc.

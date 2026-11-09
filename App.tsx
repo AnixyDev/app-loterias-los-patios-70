@@ -3,10 +3,9 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import ResultsHistory from './components/ResultsHistory';
 import TicketChecker from './components/TicketChecker';
-import GeneratorTab from './components/GeneratorTab';
 import FeaturedResultBanner from './components/FeaturedResultBanner';
 import WeeklyResultsTicker from './components/WeeklyResultsTicker';
-import { LOTTERY_GAMES, JUEGOS_GENERADOR } from './constants';
+import { LOTTERY_GAMES } from './constants';
 import { fetchFeaturedOficial, fetchTickerOficial, fetchResultsOficial, esJuegoOficial } from './services/loteriaOficial';
 
 // Juegos con historial de resultados oficiales (los de combinación).
@@ -18,7 +17,7 @@ import {
     WeeklyTickerResult
 } from './types';
 
-type ActiveTab = 'history' | 'checker' | 'generator';
+type ActiveTab = 'history' | 'checker';
 
 // Main application component
 const App: React.FC = () => {
@@ -113,7 +112,6 @@ const App: React.FC = () => {
                                 <nav className="inline-flex w-full sm:w-auto gap-1 rounded-full border border-brand-gold/20 bg-black/40 p-1" role="tablist" aria-label="Secciones">
                                     <TabButton title="Historial" isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
                                     <TabButton title="Comprobador" isActive={activeTab === 'checker'} onClick={() => setActiveTab('checker')} />
-                                    <TabButton title="Generador" isActive={activeTab === 'generator'} onClick={() => setActiveTab('generator')} />
                                 </nav>
                             </div>
                             
@@ -129,9 +127,6 @@ const App: React.FC = () => {
                                 )}
                                 {activeTab === 'checker' && (
                                      <TicketChecker games={LOTTERY_GAMES} />
-                                )}
-                                 {activeTab === 'generator' && (
-                                     <GeneratorTab games={JUEGOS_GENERADOR} />
                                 )}
                             </div>
                         </div>
