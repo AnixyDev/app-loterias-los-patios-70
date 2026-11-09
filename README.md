@@ -44,7 +44,12 @@ Los tests JS y de compilación se ejecutan automáticamente en cada push y pull 
 
 ## Desplegar
 
-1. Sube la carpeta `api/` al hosting.
-2. `npm run build` y sube el contenido de `dist/` al mismo dominio.
+El build usa rutas relativas, así que la app funciona en cualquier subcarpeta
+del hosting (p. ej. `loteriasmalaga70.com/asistente/`) sin reconfigurar nada. La
+app y su backend PHP (`api/`) viven juntos en esa carpeta, en el mismo dominio
+(sin CORS).
 
-Si la app y el PHP están en el mismo dominio no hace falta configuración extra; si no, ajusta `allowed_origin` en el servidor y `VITE_OFICIAL_PROXY_URL` al compilar.
+Guía paso a paso (cPanel): ver **[DEPLOY.md](./DEPLOY.md)**.
+
+Resumen: `npm run build` → sube el contenido de `dist/` + la carpeta `api/` a
+`public_html/asistente/` → enlaza a `/asistente/` desde WordPress.
