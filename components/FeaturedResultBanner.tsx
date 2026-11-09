@@ -7,9 +7,10 @@ interface FeaturedResultBannerProps {
     results: FeaturedResult[];
     isLoading: boolean;
     error: string | null;
+    onRetry?: () => void;
 }
 
-const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, isLoading, error }) => {
+const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, isLoading, error, onRetry }) => {
 
     const SkeletonCard = () => (
         <div className="bg-black/50 border border-brand-gold/20 rounded-2xl p-4 animate-pulse flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6">
@@ -72,8 +73,16 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
 
         if (error) {
             return (
-                <div className="flex items-center justify-center h-48 bg-black/50 border border-red-500/50 rounded-2xl p-4 text-red-400">
-                    <p>{error}</p>
+                <div className="flex flex-col items-center justify-center gap-3 h-48 bg-black/50 border border-red-500/50 rounded-2xl p-4 text-red-400">
+                    <p className="text-center">{error}</p>
+                    {onRetry && (
+                        <button
+                            onClick={onRetry}
+                            className="rounded-lg border border-brand-gold/60 px-4 py-1.5 text-sm font-semibold text-brand-gold hover:bg-brand-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                        >
+                            Reintentar
+                        </button>
+                    )}
                 </div>
             );
         }

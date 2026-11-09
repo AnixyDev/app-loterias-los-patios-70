@@ -98,9 +98,9 @@ const App: React.FC = () => {
             <Header />
             <main className="container mx-auto p-2 sm:p-4 md:p-6 lg:p-8 space-y-6 sm:space-y-8">
                 
-                <FeaturedResultBanner results={featuredResults} isLoading={isFeaturedLoading} error={featuredError} />
+                <FeaturedResultBanner results={featuredResults} isLoading={isFeaturedLoading} error={featuredError} onRetry={fetchInitialData} />
                 
-                <WeeklyResultsTicker results={weeklyTickerResults} isLoading={isTickerLoading} error={tickerError} />
+                <WeeklyResultsTicker results={weeklyTickerResults} isLoading={isTickerLoading} error={tickerError} onRetry={fetchInitialData} />
 
                 <div className="grid grid-cols-1 gap-8 items-start">
                     

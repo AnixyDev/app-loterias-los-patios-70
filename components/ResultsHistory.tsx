@@ -71,7 +71,19 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
             );
         }
         if (error) {
-            return <div className="flex items-center justify-center h-full text-red-400 text-center">{error}</div>;
+            return (
+                <div className="flex flex-col items-center justify-center gap-3 h-full text-red-400 text-center">
+                    <p>{error}</p>
+                    {selectedGame && (
+                        <button
+                            onClick={handleFetchClick}
+                            className="rounded-lg border border-brand-gold/60 px-4 py-1.5 text-sm font-semibold text-brand-gold hover:bg-brand-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                        >
+                            Reintentar
+                        </button>
+                    )}
+                </div>
+            );
         }
         if (history.length === 0) {
             return (

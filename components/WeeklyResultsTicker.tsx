@@ -5,9 +5,10 @@ interface WeeklyResultsTickerProps {
     results: WeeklyTickerResult[];
     isLoading: boolean;
     error: string | null;
+    onRetry?: () => void;
 }
 
-const WeeklyResultsTicker: React.FC<WeeklyResultsTickerProps> = ({ results, isLoading, error }) => {
+const WeeklyResultsTicker: React.FC<WeeklyResultsTickerProps> = ({ results, isLoading, error, onRetry }) => {
 
     const SkeletonLoader = () => (
         <div className="flex items-center space-x-8 animate-pulse">
@@ -21,8 +22,16 @@ const WeeklyResultsTicker: React.FC<WeeklyResultsTickerProps> = ({ results, isLo
     );
 
     const ErrorDisplay = () => (
-        <div className="flex items-center justify-center h-full text-red-400">
+        <div className="flex items-center justify-center gap-3 h-full text-red-400">
             <p>{error}</p>
+            {onRetry && (
+                <button
+                    onClick={onRetry}
+                    className="rounded-md border border-brand-gold/60 px-3 py-0.5 text-xs font-semibold text-brand-gold hover:bg-brand-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                >
+                    Reintentar
+                </button>
+            )}
         </div>
     );
 
