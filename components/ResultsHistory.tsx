@@ -1,49 +1,6 @@
 import React, { useState } from 'react';
 import { LotteryGame, LotteryResult, PrizeTier } from '../types';
-
-const formatCurrency = (value: string | number | undefined | null): string => {
-    if (value === null || value === undefined) return '';
-
-    const valueStr = String(value);
-    
-    // If the string does not contain any digits, it's likely a status message like "Sin Bote".
-    if (!/\d/.test(valueStr)) {
-        return valueStr;
-    }
-
-    // Prepare the string for parsing:
-    // 1. Remove currency symbols (€, $, etc.) and any whitespace.
-    // 2. In Spanish locale, '.' is a thousands separator, so remove it.
-    // 3. In Spanish locale, ',' is the decimal separator, so replace it with a '.' for parseFloat.
-    const numberString = valueStr
-        .replace(/[€$]/g, '')
-        .trim()
-        .replace(/\./g, '') 
-        .replace(',', '.');
-        
-    const number = parseFloat(numberString);
-    
-    // If parsing fails, return the original string to avoid showing "NaN".
-    if (isNaN(number)) {
-        return valueStr;
-    }
-    
-    const options: Intl.NumberFormatOptions = {
-        style: 'currency',
-        currency: 'EUR',
-    };
-
-    // For large integer values, don't show decimal places. For smaller prize values, do.
-    if (number % 1 === 0 && number >= 1000) {
-        options.minimumFractionDigits = 0;
-        options.maximumFractionDigits = 0;
-    } else {
-        options.minimumFractionDigits = 2;
-        options.maximumFractionDigits = 2;
-    }
-
-    return new Intl.NumberFormat('es-ES', options).format(number);
-};
+import { formatPremio as formatCurrency } from '../services/format';
 
 
 interface ResultsHistoryProps {
