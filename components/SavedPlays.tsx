@@ -3,11 +3,12 @@ import { LotteryGame, GeneratedNumbers } from '../types';
 
 interface SavedPlaysProps {
     plays: ({ game: LotteryGame } & GeneratedNumbers)[];
+    onRemove?: (index: number) => void;
 }
 
-const SavedPlays: React.FC<SavedPlaysProps> = ({ plays }) => {
+const SavedPlays: React.FC<SavedPlaysProps> = ({ plays, onRemove }) => {
 
-    const PlayItem: React.FC<{ play: { game: LotteryGame } & GeneratedNumbers }> = ({ play }) => {
+    const PlayItem: React.FC<{ play: { game: LotteryGame } & GeneratedNumbers; index: number }> = ({ play, index }) => {
         const { game, main, special, addOn } = play;
         
         const formatPlayForShare = (): string => {
@@ -81,15 +82,22 @@ const SavedPlays: React.FC<SavedPlaysProps> = ({ plays }) => {
                         </p>
                     </div>
                      <div className="flex space-x-2 shrink-0 ml-2">
-                        <button onClick={handleCopy} title="Copiar jugada" className="p-1.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button onClick={handleCopy} title="Copiar jugada" aria-label={`Copiar jugada de ${game.name}`} className="p-1.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-full transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
                         </button>
                         {navigator.share && (
                             <button onClick={handleShare} title="Compartir jugada" className="p-1.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-full transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                                </svg>
+                            </button>
+                        )}
+                        {onRemove && (
+                            <button onClick={() => onRemove(index)} title="Eliminar jugada" aria-label={`Eliminar jugada de ${game.name}`} className="p-1.5 text-gray-300 hover:text-red-300 hover:bg-white/10 rounded-full transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                             </button>
                         )}
@@ -110,7 +118,7 @@ const SavedPlays: React.FC<SavedPlaysProps> = ({ plays }) => {
     return (
         <div className="space-y-2 h-full max-h-[250px] overflow-y-auto pr-2">
             {plays.map((play, index) => (
-                <PlayItem key={`${play.game.id}-${index}`} play={play} />
+                <PlayItem key={`${play.game.id}-${index}`} play={play} index={index} />
             ))}
         </div>
     );
