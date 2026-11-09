@@ -62,7 +62,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center min-h-[200px]">
                      <svg className="animate-spin h-8 w-8 text-brand-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -72,7 +72,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
         }
         if (error) {
             return (
-                <div className="flex flex-col items-center justify-center gap-3 h-full text-red-400 text-center">
+                <div className="flex flex-col items-center justify-center gap-3 min-h-[200px] text-red-400 text-center">
                     <p>{error}</p>
                     {selectedGame && (
                         <button
@@ -87,7 +87,10 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
         }
         if (history.length === 0) {
             return (
-                <div className="flex items-center justify-center h-full text-gray-400 border-2 border-dashed border-gray-600 rounded-lg p-4 text-center">
+                <div className="flex flex-col items-center justify-center gap-3 min-h-[200px] text-gray-400 border border-dashed border-brand-gold/25 rounded-xl p-6 text-center">
+                    <svg className="h-8 w-8 text-brand-gold/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6h6v6m-9 4h12a2 2 0 002-2V7a2 2 0 00-2-2h-3l-2-2H8L6 5H3a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                     <p>
                         {searchPerformed
                             ? "No se encontraron resultados para tu búsqueda."
@@ -176,7 +179,7 @@ const ResultsHistory: React.FC<ResultsHistoryProps> = ({ games, history, isLoadi
                     Buscar
                 </button>
             </div>
-             <div className="flex-grow min-h-[400px] relative">
+             <div className="min-h-[200px] relative">
                 {renderContent()}
             </div>
         </div>

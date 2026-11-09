@@ -30,7 +30,7 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
         const imageUrl = GAME_IMAGES[result.gameId] || GAME_IMAGES['default'];
 
         return (
-            <div className="relative bg-black/50 border border-brand-gold/20 rounded-2xl p-4 overflow-hidden flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6 flex flex-col justify-between transition-all duration-300 hover:border-brand-gold/40 hover:scale-105 snap-start">
+            <div className="relative bg-gradient-to-br from-black/70 to-black/40 border border-brand-gold/25 rounded-2xl p-4 overflow-hidden flex-none w-64 sm:w-72 h-48 mr-4 sm:mr-6 flex flex-col justify-between shadow-lg shadow-black/40 transition-all duration-300 hover:border-brand-gold/50 hover:shadow-brand-gold/10 hover:-translate-y-1 snap-start">
                 <div
                     style={{ backgroundImage: `url(${imageUrl})` }}
                     aria-label={result.gameName}
