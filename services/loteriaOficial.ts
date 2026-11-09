@@ -5,9 +5,12 @@
  */
 import { LotteryGame, LotteryResult, FeaturedResult, WeeklyTickerResult } from '../types';
 
+// Ruta RELATIVA por defecto (sin barra inicial): así la app y su backend PHP
+// pueden vivir juntos en cualquier carpeta (p. ej. /asistente/), y en local
+// el proxy de Vite la reenvía igual. Se puede forzar una URL con VITE_OFICIAL_PROXY_URL.
 const PROXY_URL =
     (import.meta.env.VITE_OFICIAL_PROXY_URL as string | undefined) ||
-    '/api/loteria-oficial.php';
+    'api/loteria-oficial.php';
 
 // Si SELAE (o el proxy) no responde, no dejamos el spinner colgado para siempre.
 const TIMEOUT_MS = 15000;
