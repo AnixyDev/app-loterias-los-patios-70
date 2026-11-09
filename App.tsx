@@ -5,6 +5,7 @@ import ResultsHistory from './components/ResultsHistory';
 import TicketChecker from './components/TicketChecker';
 import FeaturedResultBanner from './components/FeaturedResultBanner';
 import WeeklyResultsTicker from './components/WeeklyResultsTicker';
+import ReservaCTA from './components/ReservaCTA';
 import { LOTTERY_GAMES } from './constants';
 import { fetchFeaturedOficial, fetchTickerOficial, fetchResultsOficial, esJuegoOficial } from './services/loteriaOficial';
 
@@ -132,6 +133,9 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Llamada a la acción: reservar un décimo o preguntar */}
+                <ReservaCTA />
 
             </main>
             <Footer />
