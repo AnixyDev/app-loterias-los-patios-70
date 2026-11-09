@@ -45,12 +45,12 @@ const FeaturedResultBanner: React.FC<FeaturedResultBannerProps> = ({ results, is
                     <p className="text-3xl font-bold text-brand-gold leading-tight">{formatCurrency(result.jackpot)}</p>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
                         {result.mainNumbers && result.mainNumbers.map((num, i) => (
-                            <span key={`main-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-white text-black rounded-full font-bold">
+                            <span key={`main-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-white text-black rounded-full font-bold shadow-md ring-1 ring-black/10">
                                 {num}
                             </span>
                         ))}
                         {result.specialNumbers && (Array.isArray(result.specialNumbers) ? result.specialNumbers : [result.specialNumbers]).map((num, i) => (
-                            <span key={`special-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-brand-gold text-black rounded-full font-bold">
+                            <span key={`special-${num}-${i}`} className="flex items-center justify-center h-6 w-6 text-xs bg-gradient-to-br from-brand-gold to-yellow-600 text-black rounded-full font-bold shadow-md shadow-brand-gold/40">
                                 {num}
                             </span>
                         ))}
