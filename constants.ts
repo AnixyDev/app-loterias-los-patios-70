@@ -81,16 +81,6 @@ export const LOTTERY_GAMES: LotteryGame[] = [
     },
 ];
 
-/**
- * Juegos para el GENERADOR de números: solo aquellos en los que eliges una
- * combinación de números. Se excluye Lotería Nacional (no se elige número: se
- * compra un décimo ya impreso), por lo que generar números para ella no tiene
- * sentido.
- */
-export const JUEGOS_GENERADOR: LotteryGame[] = LOTTERY_GAMES.filter(
-    (g) => g.id !== 'nacional',
-);
-
 // Fix: Export GAME_IMAGES to resolve the import error in FeaturedResultBanner.tsx.
 export const GAME_IMAGES: { [key: string]: string } = {
     euromillones: 'https://www.loteriasmalaga70.com/images/juegos/euromillones.jpg',
