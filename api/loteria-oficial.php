@@ -339,13 +339,24 @@ function map_ticker(string $game, array $s): array {
 }
 
 const SELAE_UA  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-const CACHE_TTL = 1200;   // 20 minutos: los resultados no cambian en ese rato.
+const CACHE_TTL = 3600;   // 1 hora: los resultados apenas cambian y así se
+                          // llama mucho menos al proxy (ahorra créditos).
 
 /** Carpeta de caché (se crea si no existe). */
 function cache_dir(): string {
     $dir = sys_get_temp_dir() . '/selae_cache';
     if (!is_dir($dir)) @mkdir($dir, 0700, true);
     return $dir;
+}
+
+/** Lee api/config.php (si existe) una sola vez. */
+function app_config(): array {
+    static $cfg = null;
+    if ($cfg === null) {
+        $p = __DIR__ . '/config.php';
+        $cfg = is_file($p) ? (array) require $p : [];
+    }
+    return $cfg;
 }
 
 /**
@@ -378,6 +389,62 @@ function selae_cookiejar(): string {
 }
 
 /**
+ * Hace la petición HTTP a una URL de SELAE y devuelve ['code','body','error','via'].
+ *
+ * Si en config.php hay un 'selae_proxy' (plantilla con {url}), enruta por ese
+ * servicio antibot — necesario en hostings cuya IP bloquea Akamai (403). Si no,
+ * llama directo con el cookie jar y las cabeceras de navegador (sirve en local,
+ * con IP doméstica).
+ */
+function selae_http(string $targetUrl): array {
+    $proxy = trim((string) (app_config()['selae_proxy'] ?? ''));
+
+    if ($proxy !== '') {
+        // Vía proxy antibot: le pasamos la URL de SELAE codificada; él resuelve
+        // el reto de Akamai y nos devuelve el cuerpo (el JSON de SELAE).
+        $reqUrl = str_replace('{url}', rawurlencode($targetUrl), $proxy);
+        $ch = curl_init($reqUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 70,   // los proxies antibot pueden tardar
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_ENCODING       => '',
+        ]);
+    } else {
+        // Vía directa (local): cookie jar de Akamai + cabeceras de navegador.
+        $jar = selae_cookiejar();
+        $ch = curl_init($targetUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 25,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_USERAGENT      => SELAE_UA,
+            CURLOPT_COOKIEJAR      => $jar,
+            CURLOPT_COOKIEFILE     => $jar,
+            CURLOPT_HTTPHEADER     => [
+                'Accept: application/json, text/plain, */*',
+                'Accept-Language: es-ES,es;q=0.9',
+                'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
+                'X-Requested-With: XMLHttpRequest',
+                'Origin: https://www.loteriasyapuestas.es',
+                'Connection: keep-alive',
+            ],
+        ]);
+    }
+
+    $resp = curl_exec($ch);
+    $out = [
+        'code'  => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+        'body'  => $resp === false ? '' : (string) $resp,
+        'error' => curl_error($ch),
+        'via'   => $proxy !== '' ? 'proxy' : 'directo',
+    ];
+    curl_close($ch);
+    return $out;
+}
+
+/**
  * Descarga de SELAE los sorteos de un juego en un rango (YYYYMMDD), con caché
  * en disco (CACHE_TTL) para no repetir llamadas ni abusar de SELAE/Akamai.
  */
@@ -389,34 +456,13 @@ function fetch_selae(string $gameId, string $fromYmd, string $toYmd): ?array {
         if (is_array($cached)) return $cached;
     }
 
-    // 2) Llamada real al API, reusando las cookies de Akamai (calentadas una vez).
-    $jar = selae_cookiejar();
+    // 2) Llamada real al API (directa o por proxy antibot, según config).
     $url = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id={$gameId}"
          . "&celebrados=true&fechaInicioInclusiva={$fromYmd}&fechaFinInclusiva={$toYmd}";
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 25,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_ENCODING       => '',
-        CURLOPT_USERAGENT      => SELAE_UA,
-        CURLOPT_COOKIEJAR      => $jar,
-        CURLOPT_COOKIEFILE     => $jar,
-        CURLOPT_HTTPHEADER     => [
-            'Accept: application/json, text/plain, */*',
-            'Accept-Language: es-ES,es;q=0.9',
-            'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
-            'X-Requested-With: XMLHttpRequest',
-            'Origin: https://www.loteriasyapuestas.es',
-            'Connection: keep-alive',
-        ],
-    ]);
-    $resp = curl_exec($ch);
-    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $r = selae_http($url);
 
-    if ($resp === false || $code < 200 || $code >= 300) return null;
-    $data = json_decode($resp, true);
+    if ($r['code'] < 200 || $r['code'] >= 300 || $r['body'] === '') return null;
+    $data = json_decode($r['body'], true);
     if (!is_array($data)) return null;
 
     @file_put_contents($cacheFile, json_encode($data));   // 3) Guardar en caché
@@ -491,9 +537,7 @@ if (PHP_SAPI === 'cli' && ($argv[1] ?? '') === 'test') {
 // ===========================================================================
 //  MODO WEB (endpoint real)
 // ===========================================================================
-$ALLOWED_ORIGIN = '';
-$cfgPath = __DIR__ . '/config.php';
-if (is_file($cfgPath)) { $cfg = require $cfgPath; if (is_array($cfg) && !empty($cfg['allowed_origin'])) $ALLOWED_ORIGIN = (string)$cfg['allowed_origin']; }
+$ALLOWED_ORIGIN = (string) (app_config()['allowed_origin'] ?? '');
 if ($ALLOWED_ORIGIN !== '') { header('Access-Control-Allow-Origin: ' . $ALLOWED_ORIGIN); header('Vary: Origin'); }
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -512,44 +556,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['diag'])) {
         'cache_dir'        => cache_dir(),
         'cache_escribible' => is_writable(cache_dir()),
     ];
+    $info['proxy_configurado'] = trim((string) (app_config()['selae_proxy'] ?? '')) !== '';
     if (!extension_loaded('curl')) {
         $info['selae'] = 'cURL NO está disponible: el hosting no puede llamar a SELAE.';
         echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
+    // Usa el MISMO camino que la app (directo o por proxy, según config).
     $from = date('Ymd', strtotime('-16 days'));
     $to   = date('Ymd');
-    $jar  = selae_cookiejar();
     $url  = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id=EMIL"
           . "&celebrados=true&fechaInicioInclusiva={$from}&fechaFinInclusiva={$to}";
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 25,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_ENCODING       => '',
-        CURLOPT_USERAGENT      => SELAE_UA,
-        CURLOPT_COOKIEJAR      => $jar,
-        CURLOPT_COOKIEFILE     => $jar,
-        CURLOPT_HTTPHEADER     => [
-            'Accept: application/json, text/plain, */*',
-            'Accept-Language: es-ES,es;q=0.9',
-            'Referer: https://www.loteriasyapuestas.es/es/resultados-medios/resultados-ultimos-sorteos',
-            'X-Requested-With: XMLHttpRequest',
-            'Origin: https://www.loteriasyapuestas.es',
-            'Connection: keep-alive',
-        ],
-    ]);
-    $resp = curl_exec($ch);
+    $r = selae_http($url);
     $info['selae'] = [
-        'http_code'  => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
-        'curl_errno' => curl_errno($ch),
-        'curl_error' => curl_error($ch),
-        'bytes'      => $resp === false ? 0 : strlen((string)$resp),
-        'es_json'    => $resp !== false && is_array(json_decode((string)$resp, true)),
-        'muestra'    => $resp === false ? null : mb_substr((string)$resp, 0, 300),
+        'via'        => $r['via'],
+        'http_code'  => $r['code'],
+        'curl_error' => $r['error'],
+        'bytes'      => strlen($r['body']),
+        'es_json'    => is_array(json_decode($r['body'], true)),
+        'muestra'    => mb_substr($r['body'], 0, 300),
     ];
-    curl_close($ch);
     echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
