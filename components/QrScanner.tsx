@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import jsQR from 'jsqr';
 import { parseQrTicket, QrTicket } from '../services/qrTicket';
 
@@ -12,6 +12,14 @@ interface QrScannerProps {
  * resguardo de SELAE, lo interpreta con parseQrTicket y lo entrega al padre.
  * No envía la imagen a ningún servidor.
  */
+/** ¿El dispositivo es un móvil/tablet (cámara trasera útil para escanear)? */
+const esDispositivoMovil = (): boolean => {
+    if (typeof navigator === 'undefined') return false;
+    const punteroGrueso = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+    const uaMovil = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent);
+    return punteroGrueso || uaMovil;
+};
+
 const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,6 +28,11 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     const cancelarRef = useRef<HTMLButtonElement>(null);
     const [error, setError] = useState<string | null>(null);
     const [aviso, setAviso] = useState<string | null>(null);
+    // En escritorio no abrimos la cámara de entrada: mostramos un aviso y el
+    // usuario puede intentarlo igualmente (p. ej. un portátil con webcam).
+    const [forzar, setForzar] = useState(false);
+    const esMovil = useMemo(() => esDispositivoMovil(), []);
+    const activarCamara = esMovil || forzar;
 
     // Cerrar con Escape y llevar el foco al botón Cancelar al abrir.
     useEffect(() => {
@@ -30,6 +43,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
     }, [onClose]);
 
     useEffect(() => {
+        if (!activarCamara) return;
         let cancelado = false;
 
         const parar = () => {
@@ -88,7 +102,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
         })();
 
         return () => { cancelado = true; parar(); };
-    }, [onDetect]);
+    }, [onDetect, activarCamara]);
 
     return (
         <div
@@ -97,21 +111,55 @@ const QrScanner: React.FC<QrScannerProps> = ({ onDetect, onClose }) => {
             aria-modal="true"
             aria-label="Escanear el código QR del resguardo"
         >
-            <div className="relative w-full max-w-sm">
-                <video ref={videoRef} className="w-full rounded-lg border-2 border-brand-gold" muted playsInline aria-label="Vista de la cámara" />
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-brand-gold/70" aria-hidden="true" />
-            </div>
-            <p className="mt-4 max-w-sm text-center text-sm text-gray-200" role="status" aria-live="polite">
-                {error || aviso || 'Enfoca el código QR del resguardo'}
-            </p>
-            <button
-                ref={cancelarRef}
-                onClick={onClose}
-                className="mt-4 rounded-lg bg-brand-gold px-6 py-2 font-bold text-black hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-                Cancelar
-            </button>
+            {!activarCamara ? (
+                /* En escritorio: aviso de usar el móvil, con opción de intentarlo igual. */
+                <div className="w-full max-w-sm text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-brand-gold/40 bg-black/40 text-brand-gold">
+                        <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                            <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+                            <path strokeLinecap="round" d="M11 18.5h2" />
+                        </svg>
+                    </div>
+                    <h2 className="text-lg font-bold text-white">Escanea desde el móvil</h2>
+                    <p className="mt-2 text-sm text-gray-300">
+                        El escáner de QR está pensado para el teléfono: abre esta página en tu
+                        móvil y apunta con la cámara trasera al resguardo.
+                    </p>
+                    <div className="mt-6 flex flex-col gap-2">
+                        <button
+                            onClick={() => setForzar(true)}
+                            className="rounded-lg border border-brand-gold/40 bg-black/40 px-6 py-2 font-semibold text-brand-gold hover:bg-brand-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+                        >
+                            Intentar con la cámara de este equipo
+                        </button>
+                        <button
+                            ref={cancelarRef}
+                            onClick={onClose}
+                            className="rounded-lg bg-brand-gold px-6 py-2 font-bold text-black hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="relative w-full max-w-sm">
+                        <video ref={videoRef} className="w-full rounded-lg border-2 border-brand-gold" muted playsInline aria-label="Vista de la cámara" />
+                        <canvas ref={canvasRef} className="hidden" />
+                        <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-brand-gold/70" aria-hidden="true" />
+                    </div>
+                    <p className="mt-4 max-w-sm text-center text-sm text-gray-200" role="status" aria-live="polite">
+                        {error || aviso || 'Enfoca el código QR del resguardo'}
+                    </p>
+                    <button
+                        ref={cancelarRef}
+                        onClick={onClose}
+                        className="mt-4 rounded-lg bg-brand-gold px-6 py-2 font-bold text-black hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                        Cancelar
+                    </button>
+                </>
+            )}
         </div>
     );
 };
