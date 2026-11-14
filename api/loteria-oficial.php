@@ -545,41 +545,6 @@ header('X-Content-Type-Options: nosniff');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 header('Content-Type: application/json; charset=utf-8');
 
-// -------- Diagnóstico (GET ?diag=1) --------
-// Comprueba cURL y la conexión real con SELAE desde este servidor, para depurar
-// el despliegue. No expone datos sensibles.
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['diag'])) {
-    $info = [
-        'php'              => PHP_VERSION,
-        'curl_cargado'     => extension_loaded('curl'),
-        'allow_url_fopen'  => (bool) ini_get('allow_url_fopen'),
-        'cache_dir'        => cache_dir(),
-        'cache_escribible' => is_writable(cache_dir()),
-    ];
-    $info['proxy_configurado'] = trim((string) (app_config()['selae_proxy'] ?? '')) !== '';
-    if (!extension_loaded('curl')) {
-        $info['selae'] = 'cURL NO está disponible: el hosting no puede llamar a SELAE.';
-        echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        exit;
-    }
-    // Usa el MISMO camino que la app (directo o por proxy, según config).
-    $from = date('Ymd', strtotime('-16 days'));
-    $to   = date('Ymd');
-    $url  = "https://www.loteriasyapuestas.es/servicios/buscadorSorteos?game_id=EMIL"
-          . "&celebrados=true&fechaInicioInclusiva={$from}&fechaFinInclusiva={$to}";
-    $r = selae_http($url);
-    $info['selae'] = [
-        'via'        => $r['via'],
-        'http_code'  => $r['code'],
-        'curl_error' => $r['error'],
-        'bytes'      => strlen($r['body']),
-        'es_json'    => is_array(json_decode($r['body'], true)),
-        'muestra'    => mb_substr($r['body'], 0, 300),
-    ];
-    echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Método no permitido.']); exit; }
 
 $body = json_decode((string)file_get_contents('php://input'), true);
