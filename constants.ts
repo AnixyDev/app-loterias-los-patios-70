@@ -81,13 +81,16 @@ export const LOTTERY_GAMES: LotteryGame[] = [
     },
 ];
 
-// Fix: Export GAME_IMAGES to resolve the import error in FeaturedResultBanner.tsx.
+// Imágenes de fondo (textura sutil) de las tarjetas de destacados.
+// Reutilizamos los logos que ya están subidos en la biblioteca de medios
+// (los mismos del carrusel de la web), para que no den 404.
+const UPLOADS = 'https://loteriasmalaga70.com/wp-content/uploads/2025/08';
 export const GAME_IMAGES: { [key: string]: string } = {
-    euromillones: 'https://www.loteriasmalaga70.com/images/juegos/euromillones.jpg',
-    eurodreams: 'https://www.loteriasmalaga70.com/images/juegos/eurodreams.jpg',
-    primitiva: 'https://www.loteriasmalaga70.com/images/juegos/primitiva.jpg',
-    bonoloto: 'https://www.loteriasmalaga70.com/images/juegos/bonoloto.jpg',
-    gordo: 'https://www.loteriasmalaga70.com/images/juegos/gordo.jpg',
-    nacional: 'https://www.loteriasmalaga70.com/images/juegos/loteria-nacional.jpg',
-    default: 'https://www.loteriasmalaga70.com/images/logo-malaga70.png'
+    euromillones: `${UPLOADS}/2.webp`,
+    eurodreams:   `${UPLOADS}/1.webp`,
+    primitiva:    `${UPLOADS}/7.webp`,
+    bonoloto:     `${UPLOADS}/10.webp`,
+    gordo:        `${UPLOADS}/5.webp`,
+    nacional:     `${UPLOADS}/3-2.webp`,
+    default:      `${UPLOADS}/7.webp`,
 };
